@@ -27,8 +27,10 @@ export default function BottomNav() {
       activeColor: '#9b20d8',
       icon: (active: boolean) => (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-          <path d="M6 9H18M6 9C6 9 4 9 4 7V5H20V7C20 9 18 9 18 9M6 9C6 9 6 14 12 17C18 14 18 9 18 9" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2" strokeLinejoin="round"/>
-          <path d="M12 17V21M9 21H15" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2" strokeLinecap="round"/>
+          <rect x="3" y="3" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
+          <rect x="14" y="3" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
+          <rect x="3" y="14" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
+          <rect x="14" y="14" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
         </svg>
       ),
     },

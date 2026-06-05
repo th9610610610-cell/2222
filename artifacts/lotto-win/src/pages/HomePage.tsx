@@ -33,8 +33,11 @@ export default function HomePage() {
 
   const liveDraws = draws.filter(d => d.status === 'live')
 
-  // ACC#1001, ACC#1002 format
-  const accNumber = user?.id ? `ACC#${1000 + Number(user.id)}` : 'ACC#1001'
+  // ACC#1001 format — id is string, use sequential number from last digits or index
+  const uid = user?.id ? parseInt(String(user.id), 10) : NaN
+  const accNumber = user?.id
+    ? `ACC#${!isNaN(uid) ? 1000 + uid : String(user.id).replace(/\D/g, '').slice(-4).padStart(4, '0')}`
+    : 'ACC#----'
 
   return (
     <div className="app">
@@ -49,17 +52,25 @@ export default function HomePage() {
           padding: '20px', marginBottom: '14px',
           position: 'relative', overflow: 'hidden',
         }}>
-          <svg style={{ position: 'absolute', bottom: 0, left: 0, opacity: 0.2, pointerEvents: 'none' }} width="280" height="90" viewBox="0 0 280 90">
-            <path d="M0 65 Q50 25 100 55 Q150 85 200 45 Q240 10 280 40 L280 90 L0 90Z" fill="url(#wg1)"/>
-            <path d="M0 75 Q60 45 120 65 Q180 85 230 55 Q255 35 280 60 L280 90 L0 90Z" fill="url(#wg2)" opacity="0.55"/>
+          {/* Unique mesh background */}
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.22, pointerEvents: 'none' }} viewBox="0 0 360 140" preserveAspectRatio="xMidYMid slice">
             <defs>
-              <linearGradient id="wg1" x1="0" y1="0" x2="280" y2="0">
-                <stop offset="0%" stopColor="#9b20d8"/><stop offset="100%" stopColor="#e8187a"/>
-              </linearGradient>
-              <linearGradient id="wg2" x1="0" y1="0" x2="280" y2="0">
-                <stop offset="0%" stopColor="#e8187a"/><stop offset="100%" stopColor="#f0a500"/>
-              </linearGradient>
+              <linearGradient id="mg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#9b20d8"/><stop offset="100%" stopColor="#e8187a"/></linearGradient>
+              <linearGradient id="mg2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#e8187a"/><stop offset="100%" stopColor="#f0a500"/></linearGradient>
+              <radialGradient id="mg3" cx="80%" cy="20%"><stop offset="0%" stopColor="#f0a500" stopOpacity="0.6"/><stop offset="100%" stopColor="transparent"/></radialGradient>
             </defs>
+            {/* Wavy bands */}
+            <path d="M0 80 Q60 40 120 70 Q180 100 240 60 Q300 20 360 55 L360 140 L0 140Z" fill="url(#mg1)"/>
+            <path d="M0 100 Q80 65 160 90 Q240 115 320 75 Q345 62 360 80 L360 140 L0 140Z" fill="url(#mg2)" opacity="0.5"/>
+            {/* Floating dots */}
+            <circle cx="280" cy="30" r="40" fill="url(#mg3)"/>
+            <circle cx="40" cy="110" r="3" fill="#9b20d8" opacity="0.7"/>
+            <circle cx="90" cy="25" r="2" fill="#f0a500" opacity="0.6"/>
+            <circle cx="200" cy="15" r="2.5" fill="#e8187a" opacity="0.5"/>
+            <circle cx="320" cy="100" r="2" fill="#9b20d8" opacity="0.6"/>
+            {/* Grid lines */}
+            <line x1="0" y1="35" x2="360" y2="35" stroke="#9b20d8" strokeWidth="0.4" opacity="0.4" strokeDasharray="6 8"/>
+            <line x1="0" y1="70" x2="360" y2="70" stroke="#e8187a" strokeWidth="0.4" opacity="0.3" strokeDasharray="6 8"/>
           </svg>
           <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
             <div style={{
