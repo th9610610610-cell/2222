@@ -32,10 +32,10 @@ export default function LoginPage() {
         {error && <div style={{ background: 'rgba(232,24,122,0.15)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '12px', color: '#f88', fontSize: '14px', marginBottom: '16px' }}>{error}</div>}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Phone Number</label>
+            <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Phone Number or Username</label>
             <input
-              type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-              placeholder="01XXXXXXXXX" required
+              type="text" value={phone} onChange={e => setPhone(e.target.value)}
+              placeholder="01XXXXXXXXX or username" required
               style={{ width: '100%', background: '#08071a', border: '1px solid rgba(155,32,216,0.3)', borderRadius: '10px', padding: '12px 14px', color: '#fff', fontSize: '15px', outline: 'none', boxSizing: 'border-box' }}
             />
           </div>
