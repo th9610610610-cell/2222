@@ -74,9 +74,5 @@
     "wouter": "^3.3.5",
     "zod": "catalog:"
   },
-  "dependencies": {
-    "drizzle-orm": "catalog:",
-    "next": "^16.2.7",
-    "postgres": "^3.4.9"
-  }
+  "dependencies": {}
 }

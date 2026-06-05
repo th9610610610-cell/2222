@@ -4,7 +4,8 @@ import { db } from '@workspace/db'
 import { usersTable } from '@workspace/db'
 import { eq } from 'drizzle-orm'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'lotto-win-secret-key-change-in-prod'
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is required')
+const JWT_SECRET = process.env.JWT_SECRET as string
 
 export interface AuthRequest extends Request {
   user?: typeof usersTable.$inferSelect

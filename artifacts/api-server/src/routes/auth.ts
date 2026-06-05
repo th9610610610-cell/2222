@@ -7,7 +7,8 @@ import { usersTable } from '@workspace/db'
 import { eq } from 'drizzle-orm'
 
 const router = Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'lotto-win-secret-key-change-in-prod'
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is required')
+const JWT_SECRET = process.env.JWT_SECRET as string
 
 const registerSchema = z.object({
   full_name: z.string().min(2),

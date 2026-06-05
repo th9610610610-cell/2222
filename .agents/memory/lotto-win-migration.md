@@ -4,7 +4,9 @@ description: Key decisions from migrating Next.js/Supabase app to Replit pnpm mo
 ---
 
 ## Auth
-JWT tokens stored in localStorage as `lw_token`. bcryptjs for password hashing. JWT_SECRET env var (falls back to dev default). Admin user: phone=01900000000, password=admin123.
+JWT tokens stored in localStorage as `lw_token`. bcryptjs for password hashing. `JWT_SECRET` env var is required at startup (no fallback — server throws if absent).
+
+**Why:** Insecure fallback defaults make tokens forgeable with a known key.
 
 ## Routing
 Using wouter (not react-router-dom — not installed). `useLocation()` returns `[pathname, navigate]`.
