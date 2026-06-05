@@ -9,6 +9,7 @@ import MyTicketsPage from './pages/MyTicketsPage'
 import WalletPage from './pages/WalletPage'
 import DepositPage from './pages/DepositPage'
 import ProfilePage from './pages/ProfilePage'
+import NotificationsPage from './pages/NotificationsPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPage from './pages/AdminPage'
 import NotFound from './pages/not-found'
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/wallet" component={WalletPage} />
       <Route path="/deposit" component={DepositPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/notifications" component={NotificationsPage} />
       <Route path="/lw-secure-7x9k" component={AdminLoginPage} />
       <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />

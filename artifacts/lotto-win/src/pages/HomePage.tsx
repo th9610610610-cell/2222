@@ -181,45 +181,69 @@ export default function HomePage() {
           <div style={{ background: '#13112e', borderRadius: '18px', padding: '30px', textAlign: 'center', color: '#8888aa', marginBottom: '14px' }}>Loading draws...</div>
         ) : (liveDraws.length > 0 ? liveDraws : [null]).map((draw, idx) => (
           <div key={draw?.id ?? 'placeholder'} style={{ marginBottom: '12px' }}>
-            {/* Draw info card */}
+            {/* Draw info card — rich background */}
             <div style={{
-              background: 'linear-gradient(160deg, #1a0b3e 0%, #0d1540 100%)',
-              borderRadius: '18px', border: '1px solid rgba(155,32,216,0.25)',
-              padding: '20px', position: 'relative', overflow: 'hidden',
+              borderRadius: '20px', border: '1px solid rgba(240,165,0,0.3)',
+              padding: '22px 20px', position: 'relative', overflow: 'hidden',
+              background: 'linear-gradient(145deg, #2a0e50 0%, #150d40 40%, #0d1a50 100%)',
+              boxShadow: '0 8px 32px rgba(155,32,216,0.25), inset 0 1px 0 rgba(255,255,255,0.06)',
             }}>
-              <span style={{ position: 'absolute', top: '12px', right: '50px', color: '#f0a500', fontSize: '10px', opacity: 0.6 }}>✦</span>
-              <span style={{ position: 'absolute', bottom: '16px', right: '18px', color: '#9b20d8', fontSize: '8px', opacity: 0.7 }}>✦</span>
+              {/* Radial glow top-right */}
+              <div style={{ position: 'absolute', top: '-30px', right: '-20px', width: '160px', height: '160px', background: 'radial-gradient(circle, rgba(240,165,0,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              {/* Radial glow bottom-left */}
+              <div style={{ position: 'absolute', bottom: '-20px', left: '-20px', width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(155,32,216,0.2) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              {/* Star decorations */}
+              <span style={{ position: 'absolute', top: '14px', right: '55px', color: '#f0a500', fontSize: '11px', opacity: 0.8 }}>✦</span>
+              <span style={{ position: 'absolute', top: '44px', right: '22px', color: '#9b20d8', fontSize: '7px', opacity: 0.9 }}>✦</span>
+              <span style={{ position: 'absolute', bottom: '20px', left: '22px', color: '#e8187a', fontSize: '8px', opacity: 0.6 }}>✦</span>
+              <span style={{ position: 'absolute', bottom: '44px', right: '40px', color: '#f0a500', fontSize: '6px', opacity: 0.7 }}>✦</span>
+              {/* Dashed orbit line */}
+              <svg style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', opacity: 0.12, pointerEvents: 'none' }} width="320" height="50" viewBox="0 0 320 50">
+                <ellipse cx="160" cy="25" rx="155" ry="18" stroke="url(#cOrb)" strokeWidth="1.2" fill="none" strokeDasharray="8 6"/>
+                <defs><linearGradient id="cOrb" x1="0" y1="0" x2="320" y2="0"><stop offset="0%" stopColor="#f0a500"/><stop offset="100%" stopColor="#9b20d8"/></linearGradient></defs>
+              </svg>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '16px', color: '#fff', letterSpacing: '1px' }}>
-                  {draw ? draw.name.toUpperCase() : 'LUCKY DRAW'}
-                </span>
-                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#e8187a' }}>
+              {/* Header row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <span style={{ background: 'rgba(232,24,122,0.2)', color: '#e8187a', borderRadius: '20px', padding: '3px 12px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.5px' }}>
+                    {draw ? '🔴 LIVE' : '⏰ UPCOMING'}
+                  </span>
+                </div>
+                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#f0a500', background: 'rgba(240,165,0,0.1)', padding: '3px 10px', borderRadius: '8px' }}>
                   {draw ? getTimeLeft(draw.end_date).toUpperCase() : 'COMING SOON'}
                 </span>
               </div>
 
-              {/* Orbital ring + jackpot */}
-              <div style={{ textAlign: 'center', padding: '14px 0 8px', position: 'relative' }}>
-                <svg style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', opacity: 0.15, pointerEvents: 'none' }} width="280" height="80" viewBox="0 0 280 80">
-                  <ellipse cx="140" cy="40" rx="130" ry="28" stroke="url(#orb)" strokeWidth="1.5" fill="none"/>
-                  <defs>
-                    <linearGradient id="orb" x1="0" y1="0" x2="280" y2="0">
-                      <stop offset="0%" stopColor="#f0a500"/><stop offset="100%" stopColor="#e8187a"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
+              <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '15px', color: '#e0d8ff', letterSpacing: '2px', marginBottom: '12px' }}>
+                {draw ? draw.name.toUpperCase() : 'LUCKY DRAW'}
+              </p>
+
+              {/* Big jackpot */}
+              <div style={{ textAlign: 'center', padding: '10px 0 12px' }}>
                 <h1 style={{
-                  fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '42px',
-                  background: 'linear-gradient(90deg, #f0a500, #f0a500 40%, #e8187a 70%)',
+                  fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '46px',
+                  background: 'linear-gradient(90deg, #f0a500 0%, #ffcc44 45%, #e8187a 80%)',
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text', margin: 0, letterSpacing: '-1px', display: 'inline-block',
+                  filter: 'drop-shadow(0 0 20px rgba(240,165,0,0.3))',
                 }}>{draw ? formatCurrency(draw.jackpot) : '৳1 MILLION'}</h1>
-                <span style={{ color: '#f0a500', fontSize: '13px', marginLeft: '4px' }}>✦</span>
+                <span style={{ color: '#f0a500', fontSize: '14px', marginLeft: '6px', verticalAlign: 'top', marginTop: '8px', display: 'inline-block' }}>✦</span>
               </div>
-              <p style={{ textAlign: 'center', color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginTop: '4px' }}>
-                Ticket Price: {draw ? formatCurrency(draw.ticket_price) : '৳100'}
-              </p>
+
+              {/* Ticket price + sold */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '4px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ color: '#aaa8cc', fontSize: '11px', fontFamily: 'Poppins, sans-serif', marginBottom: '2px' }}>TICKET PRICE</p>
+                  <p style={{ color: '#fff', fontSize: '14px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>{draw ? formatCurrency(draw.ticket_price) : '৳100'}</p>
+                </div>
+                {draw && (
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ color: '#aaa8cc', fontSize: '11px', fontFamily: 'Poppins, sans-serif', marginBottom: '2px' }}>TICKETS SOLD</p>
+                    <p style={{ color: '#fff', fontSize: '14px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>{draw.tickets_sold}/{draw.max_tickets}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Buy button — SEPARATE from card */}
