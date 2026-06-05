@@ -1,21 +1,13 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { useLocation } from 'wouter'
 
 export default function NotFound() {
+  const [, navigate] = useLocation()
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+    <div style={{ minHeight: '100vh', background: '#08071a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px' }}>
+      <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎯</div>
+      <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '24px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>404 – Page Not Found</h1>
+      <p style={{ color: '#8888aa', marginBottom: '24px' }}>This page doesn't exist.</p>
+      <button onClick={() => navigate('/')} style={{ padding: '12px 28px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700, fontSize: '15px' }}>Go Home</button>
     </div>
-  );
+  )
 }

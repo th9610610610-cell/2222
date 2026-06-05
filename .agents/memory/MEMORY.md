@@ -1,0 +1,1 @@
+- [Lotto Win migration](lotto-win-migration.md) — Next.js→Vite+React+Express migration; JWT auth, Drizzle ORM, wouter routing

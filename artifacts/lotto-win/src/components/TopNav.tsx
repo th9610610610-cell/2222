@@ -1,11 +1,11 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation } from 'wouter'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/auth'
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
 
 export default function TopNav() {
-  const navigate = useNavigate()
+  const [, navigate] = useLocation()
   const { user, token } = useAuth()
   const [unread, setUnread] = useState(0)
 

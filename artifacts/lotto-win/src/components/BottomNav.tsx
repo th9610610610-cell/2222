@@ -1,9 +1,7 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'wouter'
 
 export default function BottomNav() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const pathname = location.pathname
+  const [pathname, navigate] = useLocation()
 
   const items = [
     {
