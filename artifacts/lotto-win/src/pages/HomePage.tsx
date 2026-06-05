@@ -99,17 +99,15 @@ export default function HomePage() {
             borderRadius: '16px', border: '1px solid rgba(34,211,238,0.2)',
             padding: '18px 16px', cursor: 'pointer',
           }}>
-            {/* Cyan ticket icon */}
-            <svg width="36" height="24" viewBox="0 0 36 22" fill="none" style={{ marginBottom: '12px' }}>
-              <rect x="1" y="1" width="34" height="20" rx="3" stroke="#22d3ee" strokeWidth="2"/>
-              <circle cx="1" cy="11" r="4" fill="#13112e" stroke="#22d3ee" strokeWidth="1.5"/>
-              <circle cx="35" cy="11" r="4" fill="#13112e" stroke="#22d3ee" strokeWidth="1.5"/>
-              <line x1="13" y1="1" x2="13" y2="21" stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <line x1="23" y1="1" x2="23" y2="21" stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="3 2"/>
-              <path d="M16 8L18 11L16 14M20 8L18 11L20 14" stroke="#22d3ee" strokeWidth="1.5" strokeLinecap="round"/>
+            {/* Cyan ticket icon — notched sides with X pattern */}
+            <svg width="48" height="30" viewBox="0 0 48 30" fill="none" style={{ marginBottom: '14px' }}>
+              <path d="M4 0 H44 A4 4 0 0 1 48 4 V10 A5 5 0 0 0 48 20 V26 A4 4 0 0 1 44 30 H4 A4 4 0 0 1 0 26 V20 A5 5 0 0 0 0 10 V4 A4 4 0 0 1 4 0 Z" fill="rgba(34,211,238,0.12)" stroke="#22d3ee" strokeWidth="1.8"/>
+              <line x1="16" y1="2" x2="16" y2="28" stroke="#22d3ee" strokeWidth="1.4" strokeDasharray="3 2.5"/>
+              <line x1="32" y1="2" x2="32" y2="28" stroke="#22d3ee" strokeWidth="1.4" strokeDasharray="3 2.5"/>
+              <line x1="20" y1="10" x2="28" y2="20" stroke="#22d3ee" strokeWidth="1.8" strokeLinecap="round"/>
+              <line x1="28" y1="10" x2="20" y2="20" stroke="#22d3ee" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '26px', color: '#fff', marginBottom: '8px' }}>{ticketCount}</p>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '12px', color: '#fff', letterSpacing: '0.5px', marginBottom: '4px' }}>MY TICKETS</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#fff', letterSpacing: '0.5px', marginBottom: '6px' }}>MY TICKETS</p>
             <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#22d3ee', letterSpacing: '0.5px' }}>VIEW ALL →</p>
           </div>
 
@@ -119,14 +117,16 @@ export default function HomePage() {
             borderRadius: '16px', border: '1px solid rgba(155,32,216,0.25)',
             padding: '18px 16px', cursor: 'pointer',
           }}>
-            {/* Purple circular arrows icon */}
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style={{ marginBottom: '12px' }}>
-              <path d="M20 12A8 8 0 104 12" stroke="#9b20d8" strokeWidth="2.2" strokeLinecap="round"/>
-              <path d="M20 12L17 9M20 12L23 9" stroke="#9b20d8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M4 12L7 15M4 12L1 15" stroke="#9b20d8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+            {/* Purple circular arrows — sync/refresh style */}
+            <svg width="38" height="38" viewBox="0 0 40 40" fill="none" style={{ marginBottom: '14px' }}>
+              {/* Top arc arrow (left-to-right) */}
+              <path d="M8 20 A12 12 0 0 1 32 20" stroke="#9b20d8" strokeWidth="3" strokeLinecap="round" fill="none"/>
+              <polyline points="29,14 32,20 26,21" stroke="#9b20d8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              {/* Bottom arc arrow (right-to-left) */}
+              <path d="M32 20 A12 12 0 0 1 8 20" stroke="#9b20d8" strokeWidth="3" strokeLinecap="round" fill="none"/>
+              <polyline points="11,26 8,20 14,19" stroke="#9b20d8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
             </svg>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '26px', color: '#fff', marginBottom: '8px' }}>{pendingCount}</p>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '12px', color: '#fff', letterSpacing: '0.5px', marginBottom: '4px' }}>PENDING</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#fff', letterSpacing: '0.5px', marginBottom: '6px' }}>PENDING</p>
             <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#9b20d8', letterSpacing: '0.5px' }}>HISTORY →</p>
           </div>
         </div>
