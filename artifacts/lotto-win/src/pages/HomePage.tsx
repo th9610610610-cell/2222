@@ -32,7 +32,9 @@ export default function HomePage() {
   }, [token])
 
   const liveDraws = draws.filter(d => d.status === 'live')
-  const accNumber = user?.id ? `ACC #${String(user.id).padStart(5, '0')}` : 'ACC #00001'
+
+  // ACC#1001, ACC#1002 format
+  const accNumber = user?.id ? `ACC#${1000 + Number(user.id)}` : 'ACC#1001'
 
   return (
     <div className="app">
@@ -47,22 +49,18 @@ export default function HomePage() {
           padding: '20px', marginBottom: '14px',
           position: 'relative', overflow: 'hidden',
         }}>
-          {/* Wave SVG decoration */}
           <svg style={{ position: 'absolute', bottom: 0, left: 0, opacity: 0.2, pointerEvents: 'none' }} width="280" height="90" viewBox="0 0 280 90">
             <path d="M0 65 Q50 25 100 55 Q150 85 200 45 Q240 10 280 40 L280 90 L0 90Z" fill="url(#wg1)"/>
             <path d="M0 75 Q60 45 120 65 Q180 85 230 55 Q255 35 280 60 L280 90 L0 90Z" fill="url(#wg2)" opacity="0.55"/>
             <defs>
               <linearGradient id="wg1" x1="0" y1="0" x2="280" y2="0">
-                <stop offset="0%" stopColor="#9b20d8"/>
-                <stop offset="100%" stopColor="#e8187a"/>
+                <stop offset="0%" stopColor="#9b20d8"/><stop offset="100%" stopColor="#e8187a"/>
               </linearGradient>
               <linearGradient id="wg2" x1="0" y1="0" x2="280" y2="0">
-                <stop offset="0%" stopColor="#e8187a"/>
-                <stop offset="100%" stopColor="#f0a500"/>
+                <stop offset="0%" stopColor="#e8187a"/><stop offset="100%" stopColor="#f0a500"/>
               </linearGradient>
             </defs>
           </svg>
-          {/* Wallet icon */}
           <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
             <div style={{
               width: '50px', height: '50px', borderRadius: '14px',
@@ -98,44 +96,38 @@ export default function HomePage() {
           {/* My Ticket */}
           <div onClick={() => navigate('/my-tickets')} style={{
             flex: 1, background: '#13112e',
-            borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)',
-            padding: '16px', cursor: 'pointer',
-            display: 'flex', flexDirection: 'column', gap: '6px',
+            borderRadius: '16px', border: '1px solid rgba(34,211,238,0.2)',
+            padding: '18px 16px', cursor: 'pointer',
           }}>
-            <div style={{
-              width: '42px', height: '42px', borderRadius: '12px',
-              background: 'rgba(155,32,216,0.2)', border: '1.5px solid rgba(155,32,216,0.4)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="2" y="7" width="20" height="10" rx="2" stroke="#9b20d8" strokeWidth="2"/>
-                <path d="M15 7V17" stroke="#9b20d8" strokeWidth="1.5" strokeDasharray="2 2"/>
-                <path d="M9 7V17" stroke="#9b20d8" strokeWidth="1.5" strokeDasharray="2 2"/>
-              </svg>
-            </div>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '22px', color: '#fff', marginTop: '4px' }}>{ticketCount}</p>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '11px', color: '#9b20d8', letterSpacing: '0.5px' }}>MY TICKET →</p>
+            {/* Cyan ticket icon */}
+            <svg width="36" height="24" viewBox="0 0 36 22" fill="none" style={{ marginBottom: '12px' }}>
+              <rect x="1" y="1" width="34" height="20" rx="3" stroke="#22d3ee" strokeWidth="2"/>
+              <circle cx="1" cy="11" r="4" fill="#13112e" stroke="#22d3ee" strokeWidth="1.5"/>
+              <circle cx="35" cy="11" r="4" fill="#13112e" stroke="#22d3ee" strokeWidth="1.5"/>
+              <line x1="13" y1="1" x2="13" y2="21" stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="3 2"/>
+              <line x1="23" y1="1" x2="23" y2="21" stroke="#22d3ee" strokeWidth="1.5" strokeDasharray="3 2"/>
+              <path d="M16 8L18 11L16 14M20 8L18 11L20 14" stroke="#22d3ee" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '26px', color: '#fff', marginBottom: '8px' }}>{ticketCount}</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '12px', color: '#fff', letterSpacing: '0.5px', marginBottom: '4px' }}>MY TICKETS</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#22d3ee', letterSpacing: '0.5px' }}>VIEW ALL →</p>
           </div>
 
           {/* Pending */}
           <div onClick={() => navigate('/my-tickets')} style={{
             flex: 1, background: '#13112e',
-            borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)',
-            padding: '16px', cursor: 'pointer',
-            display: 'flex', flexDirection: 'column', gap: '6px',
+            borderRadius: '16px', border: '1px solid rgba(155,32,216,0.25)',
+            padding: '18px 16px', cursor: 'pointer',
           }}>
-            <div style={{
-              width: '42px', height: '42px', borderRadius: '12px',
-              background: 'rgba(34,211,238,0.12)', border: '1.5px solid rgba(34,211,238,0.35)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="#22d3ee" strokeWidth="2"/>
-                <path d="M12 7V12L15 15" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '22px', color: '#fff', marginTop: '4px' }}>{pendingCount}</p>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '11px', color: '#22d3ee', letterSpacing: '0.5px' }}>PENDING →</p>
+            {/* Purple circular arrows icon */}
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" style={{ marginBottom: '12px' }}>
+              <path d="M20 12A8 8 0 104 12" stroke="#9b20d8" strokeWidth="2.2" strokeLinecap="round"/>
+              <path d="M20 12L17 9M20 12L23 9" stroke="#9b20d8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M4 12L7 15M4 12L1 15" stroke="#9b20d8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '26px', color: '#fff', marginBottom: '8px' }}>{pendingCount}</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '12px', color: '#fff', letterSpacing: '0.5px', marginBottom: '4px' }}>PENDING</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#9b20d8', letterSpacing: '0.5px' }}>HISTORY →</p>
           </div>
         </div>
 
@@ -161,11 +153,10 @@ export default function HomePage() {
               cursor: 'pointer', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: '6px',
             }}>Play Now <span style={{ fontSize: '14px' }}>›</span></button>
           </div>
-          {/* Gift box illustration */}
-          <div style={{ fontSize: '62px', lineHeight: 1, flexShrink: 0, marginRight: '4px', filter: 'drop-shadow(0 0 12px rgba(240,165,0,0.4))' }}>🎁</div>
+          <div style={{ fontSize: '64px', lineHeight: 1, flexShrink: 0, filter: 'drop-shadow(0 0 12px rgba(240,165,0,0.4))' }}>🎁</div>
         </div>
 
-        {/* ── Draw Live Now section ── */}
+        {/* ── Draw Live Now header ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '18px' }}>🏆</span>
@@ -174,58 +165,60 @@ export default function HomePage() {
           <span onClick={() => navigate('/draws')} style={{ color: '#aaa8cc', fontSize: '13px', cursor: 'pointer', fontFamily: 'Poppins, sans-serif' }}>See all draws →</span>
         </div>
 
+        {/* ── Draw Cards (NO buy button inside) ── */}
         {loading ? (
           <div style={{ background: '#13112e', borderRadius: '18px', padding: '30px', textAlign: 'center', color: '#8888aa', marginBottom: '14px' }}>Loading draws...</div>
-        ) : liveDraws.length === 0 ? (
-          <div style={{ background: '#13112e', borderRadius: '18px', padding: '30px', textAlign: 'center', color: '#8888aa', marginBottom: '14px' }}>No live draws right now</div>
-        ) : liveDraws.map(draw => (
-          <div key={draw.id} style={{
-            background: 'linear-gradient(160deg, #1a0b3e 0%, #0d1540 100%)',
-            borderRadius: '18px', border: '1px solid rgba(155,32,216,0.25)',
-            padding: '20px', marginBottom: '14px',
-            position: 'relative', overflow: 'hidden',
-          }}>
-            {/* Subtle sparkles */}
-            <span style={{ position: 'absolute', top: '12px', right: '60px', color: '#f0a500', fontSize: '10px', opacity: 0.6 }}>✦</span>
-            <span style={{ position: 'absolute', bottom: '50px', right: '20px', color: '#9b20d8', fontSize: '8px', opacity: 0.7 }}>✦</span>
+        ) : (liveDraws.length > 0 ? liveDraws : [null]).map((draw, idx) => (
+          <div key={draw?.id ?? 'placeholder'} style={{ marginBottom: '12px' }}>
+            {/* Draw info card */}
+            <div style={{
+              background: 'linear-gradient(160deg, #1a0b3e 0%, #0d1540 100%)',
+              borderRadius: '18px', border: '1px solid rgba(155,32,216,0.25)',
+              padding: '20px', position: 'relative', overflow: 'hidden',
+            }}>
+              <span style={{ position: 'absolute', top: '12px', right: '50px', color: '#f0a500', fontSize: '10px', opacity: 0.6 }}>✦</span>
+              <span style={{ position: 'absolute', bottom: '16px', right: '18px', color: '#9b20d8', fontSize: '8px', opacity: 0.7 }}>✦</span>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '16px', color: '#fff', letterSpacing: '1px' }}>{draw.name.toUpperCase()}</span>
-              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#e8187a' }}>{getTimeLeft(draw.end_date).toUpperCase()}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '16px', color: '#fff', letterSpacing: '1px' }}>
+                  {draw ? draw.name.toUpperCase() : 'LUCKY DRAW'}
+                </span>
+                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#e8187a' }}>
+                  {draw ? getTimeLeft(draw.end_date).toUpperCase() : 'COMING SOON'}
+                </span>
+              </div>
+
+              {/* Orbital ring + jackpot */}
+              <div style={{ textAlign: 'center', padding: '14px 0 8px', position: 'relative' }}>
+                <svg style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', opacity: 0.15, pointerEvents: 'none' }} width="280" height="80" viewBox="0 0 280 80">
+                  <ellipse cx="140" cy="40" rx="130" ry="28" stroke="url(#orb)" strokeWidth="1.5" fill="none"/>
+                  <defs>
+                    <linearGradient id="orb" x1="0" y1="0" x2="280" y2="0">
+                      <stop offset="0%" stopColor="#f0a500"/><stop offset="100%" stopColor="#e8187a"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <h1 style={{
+                  fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '42px',
+                  background: 'linear-gradient(90deg, #f0a500, #f0a500 40%, #e8187a 70%)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text', margin: 0, letterSpacing: '-1px', display: 'inline-block',
+                }}>{draw ? formatCurrency(draw.jackpot) : '৳1 MILLION'}</h1>
+                <span style={{ color: '#f0a500', fontSize: '13px', marginLeft: '4px' }}>✦</span>
+              </div>
+              <p style={{ textAlign: 'center', color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginTop: '4px' }}>
+                Ticket Price: {draw ? formatCurrency(draw.ticket_price) : '৳100'}
+              </p>
             </div>
 
-            {/* Big jackpot amount */}
-            <div style={{ textAlign: 'center', padding: '14px 0 8px', position: 'relative' }}>
-              {/* Orbital ring decoration */}
-              <svg style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', opacity: 0.18, pointerEvents: 'none' }} width="280" height="80" viewBox="0 0 280 80">
-                <ellipse cx="140" cy="40" rx="130" ry="28" stroke="url(#orb)" strokeWidth="1.5" fill="none"/>
-                <defs>
-                  <linearGradient id="orb" x1="0" y1="0" x2="280" y2="0">
-                    <stop offset="0%" stopColor="#f0a500"/>
-                    <stop offset="100%" stopColor="#e8187a"/>
-                  </linearGradient>
-                </defs>
-              </svg>
-              <h1 style={{
-                fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '42px',
-                background: 'linear-gradient(90deg, #f0a500, #f0a500 40%, #e8187a 70%)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text', margin: 0, letterSpacing: '-1px',
-                display: 'inline-block',
-              }}>{formatCurrency(draw.jackpot)}</h1>
-              <span style={{ color: '#f0a500', fontSize: '13px', marginLeft: '4px' }}>✦</span>
-            </div>
-
-            <p style={{ textAlign: 'center', color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '18px' }}>
-              Ticket Price: {formatCurrency(draw.ticket_price)}
-            </p>
-
-            {/* Buy Ticket Now button */}
+            {/* Buy button — SEPARATE from card */}
             <button onClick={() => navigate('/draws')} style={{
-              width: '100%', padding: '15px 22px', borderRadius: '50px', border: 'none', cursor: 'pointer',
+              width: '100%', padding: '15px 22px',
+              borderRadius: '20px',
+              border: 'none', cursor: 'pointer', marginTop: '10px',
               background: 'linear-gradient(90deg, #f0a500 0%, #e8187a 50%, #9b20d8 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              boxShadow: '0 6px 24px rgba(155,32,216,0.4)',
+              boxShadow: '0 6px 24px rgba(155,32,216,0.35)',
             }}>
               <span style={{
                 fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '15px',
@@ -234,8 +227,7 @@ export default function HomePage() {
               <div style={{
                 width: '34px', height: '34px', borderRadius: '50%',
                 border: '2px solid rgba(255,255,255,0.6)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                   <path d="M5 12H19M13 6L19 12L13 18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -244,42 +236,6 @@ export default function HomePage() {
             </button>
           </div>
         ))}
-
-        {/* No live draws — show a teaser draw card */}
-        {!loading && liveDraws.length === 0 && (
-          <div style={{
-            background: 'linear-gradient(160deg, #1a0b3e 0%, #0d1540 100%)',
-            borderRadius: '18px', border: '1px solid rgba(155,32,216,0.25)',
-            padding: '20px', marginBottom: '14px', position: 'relative', overflow: 'hidden',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '16px', color: '#fff', letterSpacing: '1px' }}>LUCKY DRAW</span>
-              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#e8187a' }}>COMING SOON</span>
-            </div>
-            <div style={{ textAlign: 'center', padding: '14px 0 8px' }}>
-              <h1 style={{
-                fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '42px',
-                background: 'linear-gradient(90deg, #f0a500, #e8187a)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text', margin: 0,
-              }}>৳1 MILLION</h1>
-            </div>
-            <p style={{ textAlign: 'center', color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '18px' }}>Ticket Price: ৳100</p>
-            <button onClick={() => navigate('/draws')} style={{
-              width: '100%', padding: '15px 22px', borderRadius: '50px', border: 'none', cursor: 'pointer',
-              background: 'linear-gradient(90deg, #f0a500 0%, #e8187a 50%, #9b20d8 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              boxShadow: '0 6px 24px rgba(155,32,216,0.4)',
-            }}>
-              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '15px', color: '#fff', letterSpacing: '1.5px' }}>BUY TICKET NOW</span>
-              <div style={{ width: '34px', height: '34px', borderRadius: '50%', border: '2px solid rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                  <path d="M5 12H19M13 6L19 12L13 18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </button>
-          </div>
-        )}
       </div>
       <BottomNav />
     </div>
