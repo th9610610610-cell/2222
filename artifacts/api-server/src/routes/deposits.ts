@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { db, depositsTable, usersTable } from '@workspace/db'
-import { eq, desc, gte } from 'drizzle-orm'
+import { eq, desc, gte, and } from 'drizzle-orm'
 import { requireAuth, AuthRequest } from '../middlewares/auth'
 
 const router = Router()
@@ -35,7 +35,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
     const oneHourAgo = new Date(Date.now() - 3600000)
     const recent = await db.select({ id: depositsTable.id }).from(depositsTable)
-      .where(eq(depositsTable.user_id, req.user!.id) && gte(depositsTable.created_at, oneHourAgo) as any)
+      .where(and(eq(depositsTable.user_id, req.user!.id), gte(depositsTable.created_at, oneHourAgo)))
     if (recent.length >= 5) return res.status(429).json({ error: 'Too many deposit requests. Try again later.' })
 
     const { score, flags } = calculateFraudScore({ senderPhone: data.sender_phone, trxId: data.trx_id, amount: data.amount })
