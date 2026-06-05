@@ -34,7 +34,8 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     if (existing.length) return res.status(400).json({ error: 'Transaction ID already used' })
 
     const oneHourAgo = new Date(Date.now() - 3600000)
-    const recent = await db.select({ id: depositsTable.id }).from(depositsTable).where(eq(depositsTable.user_id, req.user!.id))
+    const recent = await db.select({ id: depositsTable.id }).from(depositsTable)
+      .where(eq(depositsTable.user_id, req.user!.id) && gte(depositsTable.created_at, oneHourAgo) as any)
     if (recent.length >= 5) return res.status(429).json({ error: 'Too many deposit requests. Try again later.' })
 
     const { score, flags } = calculateFraudScore({ senderPhone: data.sender_phone, trxId: data.trx_id, amount: data.amount })
