@@ -17,6 +17,7 @@ export type DrawStatus = 'upcoming' | 'live' | 'ended'
 
 export interface Draw {
   id: string
+  draw_number: number | null
   name: string
   jackpot: number
   ticket_price: number
@@ -35,6 +36,7 @@ export interface Ticket {
   ticket_ref: string
   draw_id: string
   user_id: string
+  claim_code: string
   is_winner: boolean
   created_at: string
   draw?: Draw
@@ -70,4 +72,6 @@ export interface Settings {
   bkash_number: string
   nagad_number: string
   rocket_number: string
+  whatsapp_number: string
+  payment_number: string
 }

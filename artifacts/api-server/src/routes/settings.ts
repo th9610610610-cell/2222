@@ -11,14 +11,14 @@ router.get('/', async (_req, res) => {
 })
 
 router.post('/', requireAuth, requireSuperAdmin, async (req: AuthRequest, res) => {
-  const { bkash_number, nagad_number, rocket_number } = req.body
+  const { bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number } = req.body
   const [existing] = await db.select({ id: settingsTable.id }).from(settingsTable)
 
   if (existing) {
-    const [s] = await db.update(settingsTable).set({ bkash_number, nagad_number, rocket_number }).where(eq(settingsTable.id, existing.id)).returning()
+    const [s] = await db.update(settingsTable).set({ bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number }).where(eq(settingsTable.id, existing.id)).returning()
     return res.json({ settings: s })
   } else {
-    const [s] = await db.insert(settingsTable).values({ bkash_number, nagad_number, rocket_number }).returning()
+    const [s] = await db.insert(settingsTable).values({ bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number }).returning()
     return res.json({ settings: s })
   }
 })

@@ -14,7 +14,7 @@ export default function AdminPage() {
   const [deposits, setDeposits] = useState<Deposit[]>([])
   const [draws, setDraws] = useState<Draw[]>([])
   const [users, setUsers] = useState<User[]>([])
-  const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '' })
+  const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '' })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [newDraw, setNewDraw] = useState({ name: '', jackpot: '', ticket_price: '', max_tickets: '', end_date: '' })
@@ -213,13 +213,15 @@ export default function AdminPage() {
             <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '16px', fontFamily: 'Poppins, sans-serif' }}>Payment Numbers</h3>
             <form onSubmit={saveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {[
-                { label: '📱 bKash Number', key: 'bkash_number' },
-                { label: '💰 Nagad Number', key: 'nagad_number' },
-                { label: '🚀 Rocket Number', key: 'rocket_number' },
-              ].map(({ label, key }) => (
+                { label: '📱 bKash Number', key: 'bkash_number', placeholder: '01XXXXXXXXX' },
+                { label: '💰 Nagad Number', key: 'nagad_number', placeholder: '01XXXXXXXXX' },
+                { label: '🚀 Rocket Number', key: 'rocket_number', placeholder: '01XXXXXXXXX' },
+                { label: '💳 Payment Number (General)', key: 'payment_number', placeholder: '01XXXXXXXXX' },
+                { label: '📲 WhatsApp Number', key: 'whatsapp_number', placeholder: '+8801XXXXXXXXX' },
+              ].map(({ label, key, placeholder }) => (
                 <div key={key}>
                   <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>{label}</label>
-                  <input type="tel" value={(settings as any)[key]} onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))} placeholder="01XXXXXXXXX" style={inputStyle} />
+                  <input type="text" value={(settings as any)[key] || ''} onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))} placeholder={placeholder} style={inputStyle} />
                 </div>
               ))}
               <button type="submit" style={{ padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #9b20d8, #e8187a)', color: '#fff', fontWeight: 700 }}>Save Settings</button>

@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum, uniqueIndex } from 'drizzle-orm/pg-core'
 import { createInsertSchema } from 'drizzle-zod'
 
 export const userRoleEnum = pgEnum('user_role', ['user', 'moderator', 'admin'])
@@ -22,6 +22,7 @@ export const usersTable = pgTable('users', {
 
 export const drawsTable = pgTable('draws', {
   id: uuid('id').primaryKey().defaultRandom(),
+  draw_number: integer('draw_number'),
   name: text('name').notNull(),
   jackpot: integer('jackpot').notNull(),
   ticket_price: integer('ticket_price').notNull(),
@@ -37,12 +38,15 @@ export const drawsTable = pgTable('draws', {
 
 export const ticketsTable = pgTable('tickets', {
   id: uuid('id').primaryKey().defaultRandom(),
-  ticket_ref: text('ticket_ref').notNull().unique(),
+  ticket_ref: text('ticket_ref').notNull(),
   draw_id: uuid('draw_id').notNull().references(() => drawsTable.id),
   user_id: uuid('user_id').notNull().references(() => usersTable.id),
+  claim_code: text('claim_code').notNull().default(''),
   is_winner: boolean('is_winner').notNull().default(false),
   created_at: timestamp('created_at').notNull().defaultNow(),
-})
+}, (table) => ({
+  drawTicketUnique: uniqueIndex('tickets_draw_ticket_unique').on(table.draw_id, table.ticket_ref),
+}))
 
 export const depositsTable = pgTable('deposits', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -71,6 +75,8 @@ export const settingsTable = pgTable('settings', {
   bkash_number: text('bkash_number').notNull().default(''),
   nagad_number: text('nagad_number').notNull().default(''),
   rocket_number: text('rocket_number').notNull().default(''),
+  whatsapp_number: text('whatsapp_number').notNull().default(''),
+  payment_number: text('payment_number').notNull().default(''),
 })
 
 import { relations } from 'drizzle-orm'

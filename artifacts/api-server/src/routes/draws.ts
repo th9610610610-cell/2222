@@ -1,11 +1,15 @@
 import { Router } from 'express'
 import { db, drawsTable, ticketsTable, usersTable, notificationsTable } from '@workspace/db'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and, lt } from 'drizzle-orm'
 import { requireAuth, requireAdmin, AuthRequest } from '../middlewares/auth'
 
 const router = Router()
 
 router.get('/', async (_req, res) => {
+  // Auto-expire draws whose end_date has passed but are still marked 'live'
+  await db.update(drawsTable)
+    .set({ status: 'ended' })
+    .where(and(eq(drawsTable.status, 'live'), lt(drawsTable.end_date, new Date())))
   const draws = await db.select().from(drawsTable).orderBy(desc(drawsTable.created_at))
   res.json({ draws })
 })
@@ -13,9 +17,13 @@ router.get('/', async (_req, res) => {
 router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { name, jackpot, ticket_price, max_tickets, end_date } = req.body
+    // Assign sequential draw_number
+    const existing = await db.select({ draw_number: drawsTable.draw_number }).from(drawsTable)
+    const maxNum = existing.reduce((max, d) => Math.max(max, d.draw_number ?? 0), 0)
     const [draw] = await db.insert(drawsTable).values({
       name, jackpot: Number(jackpot), ticket_price: Number(ticket_price),
       max_tickets: Number(max_tickets), end_date: new Date(end_date),
+      draw_number: maxNum + 1,
     }).returning()
     res.status(201).json({ draw })
   } catch (err: any) {
