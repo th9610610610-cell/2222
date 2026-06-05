@@ -31,32 +31,77 @@ export default function HomePage() {
     padding: '18px', marginBottom: '12px',
   }
 
+  const accNumber = user?.id ? `ACC #${String(user.id).padStart(5, '0')}` : 'ACC #00001'
+
   return (
     <div className="app">
       <TopNav />
-      <div style={{ padding: '18px 18px 100px' }}>
-        {/* Balance card */}
+      <div style={{ padding: '18px 18px 120px' }}>
+
+        {/* Balance Card */}
         <div style={{
-          background: 'linear-gradient(135deg, #1a0b3e 0%, #0d1a3e 100%)',
-          borderRadius: '20px', border: '1px solid rgba(155,32,216,0.3)',
-          padding: '22px', marginBottom: '22px',
+          background: 'linear-gradient(135deg, #1a0b3e 0%, #0d1535 60%, #0a1a3e 100%)',
+          borderRadius: '20px',
+          border: '1.5px solid transparent',
+          backgroundClip: 'padding-box',
+          boxShadow: '0 0 0 1.5px rgba(155,32,216,0.5), inset 0 0 0 1px rgba(240,60,180,0.15)',
+          padding: '20px', marginBottom: '22px',
           position: 'relative', overflow: 'hidden',
         }}>
-          <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(155,32,216,0.3) 0%, transparent 70%)', borderRadius: '50%' }} />
-          <p style={{ color: '#8888aa', fontSize: '13px', marginBottom: '6px' }}>My Balance</p>
-          <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '32px', fontWeight: 800, color: '#f0a500', marginBottom: '16px' }}>
+          {/* Wave decoration */}
+          <svg style={{ position: 'absolute', bottom: 0, left: 0, opacity: 0.18 }} width="260" height="80" viewBox="0 0 260 80">
+            <path d="M0 60 Q40 20 80 50 Q120 80 160 40 Q200 0 260 35 L260 80 L0 80Z" fill="url(#wg1)"/>
+            <path d="M0 70 Q50 40 100 60 Q150 80 200 50 Q230 30 260 55 L260 80 L0 80Z" fill="url(#wg2)" opacity="0.6"/>
+            <defs>
+              <linearGradient id="wg1" x1="0" y1="0" x2="260" y2="0">
+                <stop offset="0%" stopColor="#9b20d8"/>
+                <stop offset="100%" stopColor="#e8187a"/>
+              </linearGradient>
+              <linearGradient id="wg2" x1="0" y1="0" x2="260" y2="0">
+                <stop offset="0%" stopColor="#e8187a"/>
+                <stop offset="100%" stopColor="#f0a500"/>
+              </linearGradient>
+            </defs>
+          </svg>
+
+          {/* Wallet icon top-right */}
+          <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '14px',
+              background: 'linear-gradient(135deg, #f0a500 0%, #e8187a 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(240,165,0,0.4)',
+              position: 'relative',
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6" width="20" height="13" rx="2" stroke="#fff" strokeWidth="2"/>
+                <path d="M2 10H22" stroke="#fff" strokeWidth="2"/>
+                <rect x="15" y="13" width="4" height="3" rx="1" fill="#fff"/>
+              </svg>
+              {/* sparkle */}
+              <span style={{
+                position: 'absolute', top: '-6px', right: '-4px',
+                fontSize: '14px', color: '#ffe066',
+              }}>✦</span>
+            </div>
+          </div>
+
+          {/* Balance info */}
+          <p style={{ color: '#aaa8cc', fontSize: '13px', fontWeight: 500, marginBottom: '6px', fontFamily: 'Poppins, sans-serif' }}>Total Balance</p>
+          <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '36px', fontWeight: 800, color: '#ffffff', marginBottom: '20px', letterSpacing: '-1px' }}>
             {formatCurrency(user?.balance || 0)}
           </h2>
-          <div style={{ display: 'flex', gap: '10px' }}>
+
+          {/* Bottom row: acc number + add money */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+            <span style={{ color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', fontWeight: 500 }}>{accNumber}</span>
             <button onClick={() => navigate('/deposit')} style={{
-              flex: 1, padding: '10px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-              background: 'linear-gradient(90deg, #e8187a, #9b20d8)', color: '#fff',
-              fontWeight: 700, fontSize: '14px',
+              padding: '10px 22px', borderRadius: '50px', border: 'none', cursor: 'pointer',
+              background: 'linear-gradient(90deg, #f0a500 0%, #e8187a 100%)',
+              color: '#fff', fontWeight: 700, fontSize: '14px',
+              fontFamily: 'Poppins, sans-serif',
+              boxShadow: '0 4px 14px rgba(240,60,120,0.4)',
             }}>+ Add Money</button>
-            <button onClick={() => navigate('/my-tickets')} style={{
-              flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid rgba(155,32,216,0.4)', cursor: 'pointer',
-              background: 'transparent', color: '#fff', fontWeight: 700, fontSize: '14px',
-            }}>My Tickets</button>
           </div>
         </div>
 
@@ -85,11 +130,31 @@ export default function HomePage() {
                   <span style={{ color: '#8888aa', fontSize: '13px' }}>⏳ {getTimeLeft(draw.end_date)}</span>
                   <span style={{ color: '#8888aa', fontSize: '13px' }}>{draw.tickets_sold}/{draw.max_tickets} tickets</span>
                 </div>
+
+                {/* Buy Ticket Now button */}
                 <button onClick={() => navigate('/draws')} style={{
-                  width: '100%', padding: '11px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-                  background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff',
-                  fontWeight: 700, fontSize: '14px',
-                }}>Buy Ticket · {formatCurrency(draw.ticket_price)}</button>
+                  width: '100%', padding: '14px 20px', borderRadius: '50px', border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(90deg, #f0a500 0%, #e8187a 50%, #9b20d8 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  boxShadow: '0 6px 20px rgba(155,32,216,0.35)',
+                }}>
+                  <span style={{
+                    fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '15px',
+                    color: '#fff', fontStyle: 'italic', letterSpacing: '0.5px',
+                  }}>BUY TICKET NOW</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '18px', lineHeight: 1 }}>—</span>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      border: '2px solid rgba(255,255,255,0.7)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 12H19M13 6L19 12L13 18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                </button>
               </div>
             ))}
           </>
