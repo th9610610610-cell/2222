@@ -1,1 +1,0 @@
-const nextConfig = {experimental: {optimizePackageImports: ["lucide-react"]}, redirects: async () => [{source: "/:path*", destination: "/:path*", permanent: false}]}; module.exports = nextConfig;
