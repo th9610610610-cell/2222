@@ -21,7 +21,7 @@ router.get('/deposits', requireAuth, requireAdmin, async (_req, res) => {
 
 router.patch('/deposits/:id', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   const { action, rejection_reason } = req.body
-  const [deposit] = await db.select().from(depositsTable).where(eq(depositsTable.id, req.params.id))
+  const [deposit] = await db.select().from(depositsTable).where(eq(depositsTable.id, req.params['id'] as string))
   if (!deposit) return res.status(404).json({ error: 'Deposit not found' })
   if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit already processed' })
 
@@ -30,10 +30,10 @@ router.patch('/deposits/:id', requireAuth, requireAdmin, async (req: AuthRequest
     if (user) {
       await db.update(usersTable).set({ balance: user.balance + deposit.amount, total_deposited: user.total_deposited + deposit.amount }).where(eq(usersTable.id, deposit.user_id))
     }
-    await db.update(depositsTable).set({ status: 'approved' }).where(eq(depositsTable.id, req.params.id))
+    await db.update(depositsTable).set({ status: 'approved' }).where(eq(depositsTable.id, req.params['id'] as string))
     await db.insert(notificationsTable).values({ user_id: deposit.user_id, message: `✅ Your deposit of ৳${deposit.amount} via ${deposit.method} has been approved! The amount has been added to your wallet.` })
   } else if (action === 'reject') {
-    await db.update(depositsTable).set({ status: 'rejected', rejection_reason: rejection_reason || 'Rejected by admin' }).where(eq(depositsTable.id, req.params.id))
+    await db.update(depositsTable).set({ status: 'rejected', rejection_reason: rejection_reason || 'Rejected by admin' }).where(eq(depositsTable.id, req.params['id'] as string))
     await db.insert(notificationsTable).values({ user_id: deposit.user_id, message: `❌ Your deposit of ৳${deposit.amount} via ${deposit.method} was rejected. Reason: ${rejection_reason || 'Invalid transaction'}` })
   } else {
     return res.status(400).json({ error: 'Invalid action' })
@@ -58,7 +58,7 @@ router.patch('/users/:id', requireAuth, requireSuperAdmin, async (req: AuthReque
   if (role !== undefined) updates.role = role
   if (balance !== undefined) updates.balance = Number(balance)
   if (is_flagged !== undefined) updates.is_flagged = is_flagged
-  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params.id)).returning()
+  const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.params['id'] as string)).returning()
   res.json({ user })
 })
 

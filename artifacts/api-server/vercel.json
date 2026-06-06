@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "functions": {
-    "dist/handler.mjs": {
-      "includeFiles": "dist/**"
+  "builds": [
+    {
+      "src": "api/index.ts",
+      "use": "@vercel/node"
     }
-  },
+  ],
   "routes": [
-    { "src": "/(.*)", "dest": "/dist/handler.mjs" }
+    { "src": "/(.*)", "dest": "/api/index.ts" }
   ]
 }

@@ -32,7 +32,7 @@ router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
 })
 
 router.get('/:id', async (req, res) => {
-  const [draw] = await db.select().from(drawsTable).where(eq(drawsTable.id, req.params.id))
+  const [draw] = await db.select().from(drawsTable).where(eq(drawsTable.id, req.params['id'] as string))
   if (!draw) return res.status(404).json({ error: 'Draw not found' })
   res.json({ draw })
 })
@@ -46,18 +46,18 @@ router.patch('/:id', requireAuth, requireAdmin, async (req: AuthRequest, res) =>
   if (max_tickets !== undefined) updates.max_tickets = Number(max_tickets)
   if (end_date !== undefined) updates.end_date = new Date(end_date)
   if (status !== undefined) updates.status = status
-  const [draw] = await db.update(drawsTable).set(updates).where(eq(drawsTable.id, req.params.id)).returning()
+  const [draw] = await db.update(drawsTable).set(updates).where(eq(drawsTable.id, req.params['id'] as string)).returning()
   res.json({ draw })
 })
 
 router.delete('/:id', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
-  await db.delete(ticketsTable).where(eq(ticketsTable.draw_id, req.params.id))
-  await db.delete(drawsTable).where(eq(drawsTable.id, req.params.id))
+  await db.delete(ticketsTable).where(eq(ticketsTable.draw_id, req.params['id'] as string))
+  await db.delete(drawsTable).where(eq(drawsTable.id, req.params['id'] as string))
   res.json({ success: true })
 })
 
 router.post('/:id/select-winner', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
-  const tickets = await db.select({ id: ticketsTable.id, ticket_ref: ticketsTable.ticket_ref, user_id: ticketsTable.user_id }).from(ticketsTable).where(eq(ticketsTable.draw_id, req.params.id))
+  const tickets = await db.select({ id: ticketsTable.id, ticket_ref: ticketsTable.ticket_ref, user_id: ticketsTable.user_id }).from(ticketsTable).where(eq(ticketsTable.draw_id, req.params['id'] as string))
   if (!tickets.length) return res.status(400).json({ error: 'No tickets for this draw' })
 
   const winner = tickets[Math.floor(Math.random() * tickets.length)]
@@ -69,9 +69,9 @@ router.post('/:id/select-winner', requireAuth, requireAdmin, async (req: AuthReq
     winner_id: winner.user_id,
     winner_name: winnerUser?.full_name || 'Unknown',
     winner_ticket: winner.ticket_ref,
-  }).where(eq(drawsTable.id, req.params.id)).returning()
+  }).where(eq(drawsTable.id, req.params['id'] as string)).returning()
 
-  const [drawData] = await db.select({ jackpot: drawsTable.jackpot }).from(drawsTable).where(eq(drawsTable.id, req.params.id))
+  const [drawData] = await db.select({ jackpot: drawsTable.jackpot }).from(drawsTable).where(eq(drawsTable.id, req.params['id'] as string))
   const [user] = await db.select({ balance: usersTable.balance, total_won: usersTable.total_won }).from(usersTable).where(eq(usersTable.id, winner.user_id))
   if (user && drawData) {
     await db.update(usersTable).set({
