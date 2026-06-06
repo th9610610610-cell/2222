@@ -3,7 +3,8 @@ import { useLocation } from 'wouter'
 import { Deposit, Draw, User, Settings } from '../types'
 import { formatCurrency, formatDate } from '../lib/utils'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 type Tab = 'deposits' | 'draws' | 'users' | 'settings'
 

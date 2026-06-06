@@ -2,7 +2,8 @@ import { useLocation } from 'wouter'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../lib/auth'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 export default function TopNav() {
   const [, navigate] = useLocation()

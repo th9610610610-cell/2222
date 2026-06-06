@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useLocation } from 'wouter'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 export default function AdminLoginPage() {
   const [, navigate] = useLocation()

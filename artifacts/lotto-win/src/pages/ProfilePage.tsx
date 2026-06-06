@@ -6,7 +6,8 @@ import BottomNav from '../components/BottomNav'
 import { Notification } from '../types'
 import { formatCurrency, formatDate } from '../lib/utils'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 type EditSection = 'name' | 'phone' | 'password' | null
 

@@ -7,7 +7,8 @@ import { Ticket } from '../types'
 import { formatDate } from '../lib/utils'
 import QRCode from 'react-qr-code'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 function formatTicketId(ref: string) { return `TKT-${ref}` }
 

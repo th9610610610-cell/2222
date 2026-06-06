@@ -5,7 +5,8 @@ import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { Settings } from '../types'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 export default function DepositPage() {
   const [, navigate] = useLocation()
