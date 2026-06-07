@@ -18,7 +18,7 @@ export default function WalletPage() {
   useEffect(() => {
     if (!token) { navigate('/login'); return }
     fetch(`${BASE}/api/deposits`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { setDeposits(d.deposits || []); setLoading(false) })
+      .then(r => r.json()).then(d => { setDeposits(d.deposits || []) }).catch(() => {}).finally(() => setLoading(false))
   }, [token])
 
   const statusColor = (s: string) => s === 'approved' ? '#4f4' : s === 'rejected' ? '#f88' : '#f0a500'

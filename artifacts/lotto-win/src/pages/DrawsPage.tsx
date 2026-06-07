@@ -24,10 +24,10 @@ export default function DrawsPage() {
   }, [token])
 
   const load = () => {
-    fetch(`${BASE}/api/draws`).then(r => r.json()).then(d => {
-      setDraws(d.draws || [])
-      setLoading(false)
-    })
+    fetch(`${BASE}/api/draws`)
+      .then(r => r.json())
+      .then(d => { setDraws(d.draws || []); setLoading(false) })
+      .catch(() => setLoading(false))
   }
 
   const buyTicket = async (draw: Draw) => {

@@ -42,17 +42,22 @@ export default function AdminPage() {
 
   const loadAll = async () => {
     setLoading(true)
-    const [d, dr, u, s] = await Promise.all([
-      fetch(`${BASE}/api/admin/deposits`, { headers }).then(r => r.json()),
-      fetch(`${BASE}/api/draws`).then(r => r.json()),
-      fetch(`${BASE}/api/admin/users`, { headers }).then(r => r.json()),
-      fetch(`${BASE}/api/settings`).then(r => r.json()),
-    ])
-    setDeposits(d.deposits || [])
-    setDraws(dr.draws || [])
-    setUsers(u.users || [])
-    if (s.settings) setSettings(s.settings)
-    setLoading(false)
+    try {
+      const [d, dr, u, s] = await Promise.all([
+        fetch(`${BASE}/api/admin/deposits`, { headers }).then(r => r.json()).catch(() => ({})),
+        fetch(`${BASE}/api/draws`).then(r => r.json()).catch(() => ({})),
+        fetch(`${BASE}/api/admin/users`, { headers }).then(r => r.json()).catch(() => ({})),
+        fetch(`${BASE}/api/settings`).then(r => r.json()).catch(() => ({})),
+      ])
+      setDeposits(d.deposits || [])
+      setDraws(dr.draws || [])
+      setUsers(u.users || [])
+      if (s.settings) setSettings(s.settings)
+    } catch (e) {
+      console.error('loadAll failed', e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Sort: pending first (oldest at top = FIFO), then non-pending (newest at top)

@@ -19,13 +19,12 @@ export default function NotificationsPage() {
     if (!token) { navigate('/login'); return }
     Promise.all([
       fetch(`${BASE}/api/user/notifications`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json()),
-      fetch(`${BASE}/api/settings`).then(r => r.json()),
+        .then(r => r.json()).catch(() => ({})),
+      fetch(`${BASE}/api/settings`).then(r => r.json()).catch(() => ({})),
     ]).then(([nd, sd]) => {
       setNotifications(nd.notifications || [])
       setAnnouncement(sd.settings?.announcement || '')
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {}).finally(() => setLoading(false))
     // Mark all as read
     fetch(`${BASE}/api/user/notifications`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
   }, [token])

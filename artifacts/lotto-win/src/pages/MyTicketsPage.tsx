@@ -74,7 +74,7 @@ export default function MyTicketsPage() {
   useEffect(() => {
     if (!token) { navigate('/login'); return }
     fetch(`${BASE}/api/tickets`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { setTickets(d.tickets || []); setLoading(false) })
+      .then(r => r.json()).then(d => { setTickets(d.tickets || []) }).catch(() => {}).finally(() => setLoading(false))
   }, [token])
 
   const winners = tickets.filter(t => t.is_winner)
