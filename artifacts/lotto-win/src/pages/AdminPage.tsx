@@ -319,11 +319,23 @@ export default function AdminPage() {
                 <textarea
                   value={settings.announcement || ''}
                   onChange={e => setSettings(s => ({ ...s, announcement: e.target.value }))}
-                  placeholder="Enter announcement to pin in user notifications (leave empty to remove)"
+                  placeholder="এখানে announcement লিখুন... (খালি রাখলে পিন সরে যাবে)"
                   rows={3}
                   style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
                 />
-                <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>This will appear pinned at the top of every user's notifications.</p>
+                <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>সব ইউজারের নোটিফিকেশনে পিন করা থাকবে।</p>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
+                      if (res.ok) setMsg(settings.announcement ? '📢 Announcement published!' : '🗑 Announcement removed')
+                    }}
+                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: settings.announcement ? 'linear-gradient(90deg, #f0a500, #e8187a)' : 'rgba(136,136,170,0.2)', color: '#fff', fontWeight: 700, fontSize: '13px' }}
+                  >
+                    {settings.announcement ? '📢 Publish Announcement' : '🗑 Remove Announcement'}
+                  </button>
+                </div>
               </div>
 
               {/* Payment Numbers */}
