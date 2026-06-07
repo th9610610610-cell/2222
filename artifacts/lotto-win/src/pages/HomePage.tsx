@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { Draw } from '../types'
-import { formatCurrency, getTimeLeft } from '../lib/utils'
+import { formatCurrency, formatJackpot, getTimeLeft } from '../lib/utils'
 
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
@@ -222,7 +222,7 @@ export default function HomePage() {
                   background: 'linear-gradient(90deg, #f0a500, #f0a500 40%, #e8187a 70%)',
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text', margin: 0, letterSpacing: '-1px', display: 'inline-block',
-                }}>{draw ? formatCurrency(draw.jackpot) : '৳1 MILLION'}</h1>
+                }}>{draw ? formatJackpot(draw.jackpot) : '1MILLION ৳'}</h1>
                 <span style={{ color: '#f0a500', fontSize: '13px', marginLeft: '4px' }}>✦</span>
               </div>
               <p style={{ textAlign: 'center', color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginTop: '4px' }}>
