@@ -9,7 +9,7 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
-// Manual migration trigger endpoint
+// Migration endpoint — runs all DB migrations idempotently
 router.post("/migrate", async (_req, res) => {
   const dbUrl = (process.env.DATABASE_URL || "").trim();
   if (!dbUrl) return res.status(500).json({ error: "DATABASE_URL not set" });
