@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { Draw } from '../types'
-import { formatCurrency, getTimeLeft } from '../lib/utils'
+import { formatCurrency, formatJackpot, getTimeLeft } from '../lib/utils'
 
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
@@ -46,13 +46,18 @@ export default function DrawsPage() {
     load()
   }
 
-  const statusColor = (s: string) => s === 'live' ? '#e8187a' : s === 'upcoming' ? '#9b20d8' : '#8888aa'
-  const cardStyle: React.CSSProperties = { background: '#100f28', borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)', padding: '18px', marginBottom: '14px' }
+  const statusColor = (s: string) => {
+    if (s === 'live') return '#e8187a'
+    if (s === 'upcoming') return '#9b20d8'
+    if (s === 'rescheduled') return '#f0a500'
+    return '#8888aa'
+  }
+  const cardStyle: React.CSSProperties = { background: '#100f28', borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)', padding: '12px 15px', marginBottom: '14px' }
 
   return (
     <div className="app">
       <TopNav />
-      <div style={{ padding: '18px 18px 100px' }}>
+      <div style={{ padding: '18px 15px 100px' }}>
         <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 800, color: '#fff', marginBottom: '18px' }}>🏆 All Draws</h2>
 
         {msg && (
@@ -70,12 +75,12 @@ export default function DrawsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
               <div>
                 <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '16px', marginBottom: '6px' }}>{draw.name}</h3>
-                <span style={{ background: `rgba(${statusColor(draw.status).replace('#', '').match(/.{2}/g)?.map(x => parseInt(x, 16)).join(',')},0.2)`, color: statusColor(draw.status), borderRadius: '20px', padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>
-                  {draw.status.toUpperCase()}
+                <span style={{ background: `rgba(0,0,0,0.25)`, color: statusColor(draw.status), borderRadius: '20px', padding: '3px 12px', fontSize: '12px', fontWeight: 700, border: `1px solid ${statusColor(draw.status)}44` }}>
+                  {draw.status === 'rescheduled' ? '🔄 RESCHEDULED' : draw.status.toUpperCase()}
                 </span>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ color: '#f0a500', fontFamily: 'Poppins, sans-serif', fontSize: '22px', fontWeight: 800 }}>{formatCurrency(draw.jackpot)}</p>
+                <p style={{ color: '#f0a500', fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 800 }}>{formatJackpot(draw.jackpot)}</p>
                 <p style={{ color: '#8888aa', fontSize: '12px' }}>Jackpot</p>
               </div>
             </div>
@@ -84,8 +89,6 @@ export default function DrawsPage() {
               {[
                 { label: 'Ticket Price', value: formatCurrency(draw.ticket_price) },
                 { label: 'Time Left', value: getTimeLeft(draw.end_date) },
-                { label: 'Tickets Sold', value: `${draw.tickets_sold}/${draw.max_tickets}` },
-                { label: 'Remaining', value: `${draw.max_tickets - draw.tickets_sold}` },
               ].map(({ label, value }) => (
                 <div key={label} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '10px', padding: '10px' }}>
                   <p style={{ color: '#8888aa', fontSize: '11px', marginBottom: '3px' }}>{label}</p>
@@ -101,6 +104,12 @@ export default function DrawsPage() {
                   <p style={{ color: '#f0a500', fontWeight: 700, fontSize: '14px' }}>Winner: {draw.winner_name}</p>
                   <p style={{ color: '#8888aa', fontSize: '12px' }}>Ticket: {draw.winner_ticket}</p>
                 </div>
+              </div>
+            )}
+
+            {draw.status === 'rescheduled' && (
+              <div style={{ background: 'rgba(240,165,0,0.08)', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px' }}>
+                <p style={{ color: '#f0a500', fontSize: '13px', fontWeight: 600 }}>🔄 This draw has been rescheduled. New date will be announced soon.</p>
               </div>
             )}
 

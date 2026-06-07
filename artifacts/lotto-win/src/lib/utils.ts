@@ -13,6 +13,22 @@ export function formatCurrency(amount: number | string): string {
   return `৳${Number(amount).toLocaleString('en-BD')}`
 }
 
+export function formatJackpot(amount: number): string {
+  if (amount >= 1_000_000) {
+    const val = amount / 1_000_000
+    return `${val % 1 === 0 ? val : val.toFixed(1)}MILLION ৳`
+  }
+  if (amount >= 100_000) {
+    const val = amount / 100_000
+    return `${val % 1 === 0 ? val : val.toFixed(1)} LAKH ৳`
+  }
+  if (amount >= 10_000) {
+    const val = amount / 1_000
+    return `${val % 1 === 0 ? val : val.toFixed(1)} THOUSANDS ৳`
+  }
+  return formatCurrency(amount)
+}
+
 export function formatDate(date: string): string {
   return new Date(date).toLocaleDateString('en-BD', {
     year: 'numeric',

@@ -1,12 +1,11 @@
 import { Router } from 'express'
 import { db, drawsTable, ticketsTable, usersTable, notificationsTable } from '@workspace/db'
-import { eq, desc, and, lt } from 'drizzle-orm'
+import { eq, desc, and, lt, ne } from 'drizzle-orm'
 import { requireAuth, requireAdmin, AuthRequest } from '../middlewares/auth'
 
 const router = Router()
 
 router.get('/', async (_req, res) => {
-  // Auto-expire draws whose end_date has passed but are still marked 'live'
   await db.update(drawsTable)
     .set({ status: 'ended' })
     .where(and(eq(drawsTable.status, 'live'), lt(drawsTable.end_date, new Date())))
@@ -17,7 +16,6 @@ router.get('/', async (_req, res) => {
 router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { name, jackpot, ticket_price, max_tickets, end_date } = req.body
-    // Assign sequential draw_number
     const existing = await db.select({ draw_number: drawsTable.draw_number }).from(drawsTable)
     const maxNum = existing.reduce((max, d) => Math.max(max, d.draw_number ?? 0), 0)
     const [draw] = await db.insert(drawsTable).values({
@@ -46,7 +44,36 @@ router.patch('/:id', requireAuth, requireAdmin, async (req: AuthRequest, res) =>
   if (max_tickets !== undefined) updates.max_tickets = Number(max_tickets)
   if (end_date !== undefined) updates.end_date = new Date(end_date)
   if (status !== undefined) updates.status = status
+
+  const [prevDraw] = await db.select().from(drawsTable).where(eq(drawsTable.id, req.params['id'] as string))
   const [draw] = await db.update(drawsTable).set(updates).where(eq(drawsTable.id, req.params['id'] as string)).returning()
+
+  // Send notifications to all ticket holders on status change
+  if (status && prevDraw && prevDraw.status !== status) {
+    const tickets = await db.select({ user_id: ticketsTable.user_id })
+      .from(ticketsTable)
+      .where(eq(ticketsTable.draw_id, req.params['id'] as string))
+
+    const uniqueUsers = [...new Set(tickets.map(t => t.user_id))]
+    let notifMsg = ''
+
+    if (status === 'live') {
+      notifMsg = `🔴 Draw "${draw.name}" is now LIVE! Buy your tickets now!`
+    } else if (status === 'rescheduled') {
+      notifMsg = `🔄 Draw "${draw.name}" has been rescheduled. Stay tuned for the new schedule.`
+    } else if (status === 'upcoming') {
+      notifMsg = `📅 Draw "${draw.name}" is coming up soon!`
+    } else if (status === 'ended') {
+      notifMsg = `🏁 Draw "${draw.name}" has ended.`
+    }
+
+    if (notifMsg && uniqueUsers.length > 0) {
+      await Promise.all(uniqueUsers.map(uid =>
+        db.insert(notificationsTable).values({ user_id: uid, message: notifMsg })
+      ))
+    }
+  }
+
   res.json({ draw })
 })
 
@@ -71,7 +98,7 @@ router.post('/:id/select-winner', requireAuth, requireAdmin, async (req: AuthReq
     winner_ticket: winner.ticket_ref,
   }).where(eq(drawsTable.id, req.params['id'] as string)).returning()
 
-  const [drawData] = await db.select({ jackpot: drawsTable.jackpot }).from(drawsTable).where(eq(drawsTable.id, req.params['id'] as string))
+  const [drawData] = await db.select({ jackpot: drawsTable.jackpot, name: drawsTable.name }).from(drawsTable).where(eq(drawsTable.id, req.params['id'] as string))
   const [user] = await db.select({ balance: usersTable.balance, total_won: usersTable.total_won }).from(usersTable).where(eq(usersTable.id, winner.user_id))
   if (user && drawData) {
     await db.update(usersTable).set({
@@ -80,7 +107,7 @@ router.post('/:id/select-winner', requireAuth, requireAdmin, async (req: AuthReq
     }).where(eq(usersTable.id, winner.user_id))
     await db.insert(notificationsTable).values({
       user_id: winner.user_id,
-      message: `🎉 Congratulations! You won ${drawData.jackpot} BDT! Your ticket ${winner.ticket_ref} was the lucky winner.`,
+      message: `🎉 Congratulations! You won ${drawData.jackpot} BDT from draw "${drawData.name}"! Your ticket ${winner.ticket_ref} was the lucky winner.`,
     })
   }
 

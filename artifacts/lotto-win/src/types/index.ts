@@ -13,7 +13,7 @@ export interface User {
   created_at: string
 }
 
-export type DrawStatus = 'upcoming' | 'live' | 'ended'
+export type DrawStatus = 'upcoming' | 'live' | 'ended' | 'rescheduled'
 
 export interface Draw {
   id: string
@@ -65,6 +65,7 @@ export interface Notification {
   user_id: string
   message: string
   is_read: boolean
+  is_pinned: boolean
   created_at: string
 }
 
@@ -74,4 +75,5 @@ export interface Settings {
   rocket_number: string
   whatsapp_number: string
   payment_number: string
+  announcement: string
 }
