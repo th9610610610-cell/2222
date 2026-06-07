@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'wouter'
-import { Deposit, Draw, User, Settings } from '../types'
+import { Deposit, Draw, User, Settings, Ad } from '../types'
 import { formatCurrency, formatDate, formatJackpot } from '../lib/utils'
 
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
-type Tab = 'deposits' | 'draws' | 'users' | 'settings'
+type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads'
 
 const REJECT_REASONS = [
   'Invalid Transaction Id',
@@ -22,6 +22,8 @@ export default function AdminPage() {
   const [draws, setDraws] = useState<Draw[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '' })
+  const [ads, setAds] = useState<Ad[]>([])
+  const [newAd, setNewAd] = useState({ type: 'text', title: '', content: '', link_url: '' })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [newDraw, setNewDraw] = useState({ name: '', jackpot: '', ticket_price: '', max_tickets: '', end_date: '' })
@@ -43,16 +45,18 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [d, dr, u, s] = await Promise.all([
+      const [d, dr, u, s, a] = await Promise.all([
         fetch(`${BASE}/api/admin/deposits`, { headers }).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/draws`).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/admin/users`, { headers }).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/settings`).then(r => r.json()).catch(() => ({})),
+        fetch(`${BASE}/api/ads/all`, { headers }).then(r => r.json()).catch(() => ({})),
       ])
       setDeposits(d.deposits || [])
       setDraws(dr.draws || [])
       setUsers(u.users || [])
       if (s.settings) setSettings(s.settings)
+      setAds(a.ads || [])
     } catch (e) {
       console.error('loadAll failed', e)
     } finally {
@@ -195,8 +199,8 @@ export default function AdminPage() {
         {msg && <div style={{ background: 'rgba(80,200,80,0.15)', border: '1px solid rgba(80,200,80,0.4)', borderRadius: '8px', padding: '10px 14px', color: '#4f4', fontSize: '13px', marginBottom: '16px' }}>{msg} <span onClick={() => setMsg('')} style={{ float: 'right', cursor: 'pointer' }}>✕</span></div>}
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          {(['deposits', 'draws', 'users', 'settings'] as Tab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={tabStyle(t)}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+          {(['deposits', 'draws', 'users', 'settings', 'ads'] as Tab[]).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={tabStyle(t)}>{t === 'ads' ? '📢 Ads' : t.charAt(0).toUpperCase() + t.slice(1)}</button>
           ))}
         </div>
 
@@ -313,6 +317,83 @@ export default function AdminPage() {
           </>
         )}
 
+        {/* ADS TAB */}
+        {tab === 'ads' && !loading && (
+          <>
+            <div style={cardStyle}>
+              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>📢 Create Ad</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Type</label>
+                  <select value={newAd.type} onChange={e => setNewAd(f => ({ ...f, type: e.target.value }))} style={{ ...inputStyle }}>
+                    <option value="text">📝 Text</option>
+                    <option value="image">🖼️ Image (URL)</option>
+                    <option value="video">🎥 Video (URL)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Title (optional)</label>
+                  <input type="text" value={newAd.title} onChange={e => setNewAd(f => ({ ...f, title: e.target.value }))} placeholder="Ad headline..." style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>
+                    {newAd.type === 'text' ? 'Ad Text' : newAd.type === 'image' ? 'Image URL' : 'Video URL'}
+                  </label>
+                  {newAd.type === 'text' ? (
+                    <textarea value={newAd.content} onChange={e => setNewAd(f => ({ ...f, content: e.target.value }))} placeholder="Write your ad text..." rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+                  ) : (
+                    <input type="url" value={newAd.content} onChange={e => setNewAd(f => ({ ...f, content: e.target.value }))} placeholder={newAd.type === 'image' ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'} style={inputStyle} />
+                  )}
+                </div>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Link URL (optional)</label>
+                  <input type="url" value={newAd.link_url} onChange={e => setNewAd(f => ({ ...f, link_url: e.target.value }))} placeholder="https://..." style={inputStyle} />
+                </div>
+                <button onClick={async () => {
+                  if (!newAd.content.trim()) { setMsg('Content is required'); return }
+                  const res = await fetch(`${BASE}/api/ads`, { method: 'POST', headers, body: JSON.stringify(newAd) })
+                  if (res.ok) { setMsg('✅ Ad created!'); setNewAd({ type: 'text', title: '', content: '', link_url: '' }); loadAll() }
+                  else setMsg('❌ Failed to create ad')
+                }} style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>
+                  + Post Ad
+                </button>
+              </div>
+            </div>
+            <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '12px', fontFamily: 'Poppins, sans-serif' }}>Active Ads ({ads.filter(a => a.is_active).length})</h3>
+            {ads.length === 0 ? (
+              <p style={{ color: '#8888aa', textAlign: 'center', padding: '24px' }}>No ads yet. Create one above.</p>
+            ) : ads.map(ad => (
+              <div key={ad.id} style={{ ...cardStyle, opacity: ad.is_active ? 1 : 0.5, border: `1px solid ${ad.is_active ? 'rgba(240,165,0,0.3)' : 'rgba(155,32,216,0.15)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ color: '#f0a500', fontSize: '11px', fontWeight: 700, background: 'rgba(240,165,0,0.12)', borderRadius: '6px', padding: '2px 8px', marginRight: '8px' }}>
+                      {ad.type === 'text' ? '📝' : ad.type === 'image' ? '🖼️' : '🎥'} {ad.type.toUpperCase()}
+                    </span>
+                    <span style={{ color: ad.is_active ? '#4f4' : '#8888aa', fontSize: '11px', fontWeight: 700 }}>{ad.is_active ? '● ACTIVE' : '○ HIDDEN'}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={async () => {
+                      await fetch(`${BASE}/api/ads/${ad.id}`, { method: 'PATCH', headers, body: JSON.stringify({ is_active: !ad.is_active }) })
+                      loadAll()
+                    }} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: ad.is_active ? 'rgba(136,136,170,0.2)' : 'rgba(80,200,80,0.2)', color: ad.is_active ? '#aaa' : '#4f4', fontSize: '12px', fontWeight: 600 }}>
+                      {ad.is_active ? 'Hide' : 'Show'}
+                    </button>
+                    <button onClick={async () => {
+                      await fetch(`${BASE}/api/ads/${ad.id}`, { method: 'DELETE', headers })
+                      setMsg('Ad deleted'); loadAll()
+                    }} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontSize: '12px', fontWeight: 600 }}>
+                      🗑
+                    </button>
+                  </div>
+                </div>
+                {ad.title && <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{ad.title}</p>}
+                <p style={{ color: '#8888aa', fontSize: '12px', wordBreak: 'break-all' }}>{ad.content.slice(0, 80)}{ad.content.length > 80 ? '…' : ''}</p>
+                {ad.link_url && <p style={{ color: '#9b20d8', fontSize: '11px', marginTop: '4px' }}>🔗 {ad.link_url.slice(0, 40)}…</p>}
+              </div>
+            ))}
+          </>
+        )}
+
         {/* SETTINGS TAB */}
         {tab === 'settings' && (
           <div style={cardStyle}>
@@ -335,6 +416,7 @@ export default function AdminPage() {
                     onClick={async () => {
                       const res = await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
                       if (res.ok) setMsg(settings.announcement ? '📢 Announcement published!' : '🗑 Announcement removed')
+                      else setMsg('❌ Failed! Make sure you have admin role.')
                     }}
                     style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: settings.announcement ? 'linear-gradient(90deg, #f0a500, #e8187a)' : 'rgba(136,136,170,0.2)', color: '#fff', fontWeight: 700, fontSize: '13px' }}
                   >

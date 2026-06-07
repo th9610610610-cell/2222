@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'wouter'
 import { useAuth } from '../lib/auth'
+
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { Draw } from '../types'
@@ -11,7 +12,7 @@ const BASE = API_BASE
 
 export default function DrawsPage() {
   const [, navigate] = useLocation()
-  const { user, token } = useAuth()
+  const { user, token, refresh } = useAuth()
   const [draws, setDraws] = useState<Draw[]>([])
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
@@ -44,6 +45,7 @@ export default function DrawsPage() {
     if (!res.ok) { setMsg({ type: 'err', text: data.error || 'Purchase failed' }); return }
     setMsg({ type: 'ok', text: `🎉 ${quantity} ticket(s) purchased!` })
     load()
+    refresh()
   }
 
   const statusColor = (s: string) => {

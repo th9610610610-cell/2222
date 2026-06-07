@@ -129,6 +129,26 @@ export async function runMigrations(connectionString: string): Promise<void> {
     await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS whatsapp_number TEXT NOT NULL DEFAULT ''`)
     await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS payment_number TEXT NOT NULL DEFAULT ''`)
     await client.query(`ALTER TABLE draws ADD COLUMN IF NOT EXISTS draw_number INTEGER`)
+    await client.query(`ALTER TABLE draws ADD COLUMN IF NOT EXISTS winner_id UUID`)
+    await client.query(`ALTER TABLE draws ADD COLUMN IF NOT EXISTS winner_name TEXT`)
+    await client.query(`ALTER TABLE draws ADD COLUMN IF NOT EXISTS winner_ticket TEXT`)
+    await client.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT false`)
+    await client.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT false`)
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS announcement TEXT NOT NULL DEFAULT ''`)
+    await client.query(`DO $$ BEGIN ALTER TYPE draw_status ADD VALUE IF NOT EXISTS 'rescheduled'; EXCEPTION WHEN OTHERS THEN null; END $$`)
+    await client.query(`DO $$ BEGIN CREATE TYPE ad_type AS ENUM ('text', 'image', 'video'); EXCEPTION WHEN duplicate_object THEN null; END $$`)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ads (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        type ad_type NOT NULL DEFAULT 'text',
+        title TEXT NOT NULL DEFAULT '',
+        content TEXT NOT NULL,
+        link_url TEXT NOT NULL DEFAULT '',
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        display_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
 
     await client.query(`
       UPDATE draws SET draw_number = sub.rn

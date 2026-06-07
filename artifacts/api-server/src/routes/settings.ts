@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { db, settingsTable } from '@workspace/db'
 import { eq } from 'drizzle-orm'
-import { requireAuth, requireSuperAdmin, AuthRequest } from '../middlewares/auth'
+import { requireAuth, requireAdmin, AuthRequest } from '../middlewares/auth'
 
 const router = Router()
 
@@ -10,7 +10,7 @@ router.get('/', async (_req, res) => {
   res.json({ settings: settings || { bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '' } })
 })
 
-router.post('/', requireAuth, requireSuperAdmin, async (req: AuthRequest, res) => {
+router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   const { bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number, announcement } = req.body
   const [existing] = await db.select({ id: settingsTable.id }).from(settingsTable)
 

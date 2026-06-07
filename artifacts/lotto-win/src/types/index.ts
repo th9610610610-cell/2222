@@ -77,3 +77,16 @@ export interface Settings {
   payment_number: string
   announcement: string
 }
+
+export type AdType = 'text' | 'image' | 'video'
+
+export interface Ad {
+  id: string
+  type: AdType
+  title: string
+  content: string
+  link_url: string
+  is_active: boolean
+  display_order: number
+  created_at: string
+}

@@ -50,7 +50,7 @@ export default function NotificationsPage() {
         borderBottom: '1.5px solid',
         borderImage: 'linear-gradient(90deg, #c8006a 0%, #7b00cc 100%) 1',
       }}>
-        <button onClick={() => navigate(-1 as any)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#fff' }}>
+        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#fff' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path d="M19 12H5M12 19L5 12L12 5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

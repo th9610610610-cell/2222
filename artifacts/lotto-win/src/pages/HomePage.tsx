@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'wouter'
 import { useAuth } from '../lib/auth'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
-import { Draw } from '../types'
+import { Draw, Ad } from '../types'
 import { formatCurrency, formatJackpot, getTimeLeft } from '../lib/utils'
 
 import { API_BASE } from '../lib/apiBase'
@@ -16,6 +16,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [ticketCount, setTicketCount] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
+  const [ads, setAds] = useState<Ad[]>([])
+  const [adIndex, setAdIndex] = useState(0)
+  const adTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!token) { navigate('/login'); return }
@@ -30,7 +33,19 @@ export default function HomePage() {
         setTicketCount(all.length)
         setPendingCount(all.filter((t: any) => t.status === 'pending').length)
       }).catch(() => {})
+
+    fetch(`${BASE}/api/ads`).then(r => r.json()).then(d => {
+      setAds(d.ads || [])
+    }).catch(() => {})
   }, [token])
+
+  useEffect(() => {
+    if (ads.length <= 1) return
+    adTimer.current = setInterval(() => {
+      setAdIndex(i => (i + 1) % ads.length)
+    }, 4000)
+    return () => { if (adTimer.current) clearInterval(adTimer.current) }
+  }, [ads.length])
 
   const liveDraws = draws.filter(d => d.status === 'live')
 
@@ -144,35 +159,81 @@ export default function HomePage() {
         </div>
 
         {/* ── Ads Slot ── */}
-        <div style={{
-          background: 'linear-gradient(135deg, #1a0b38 0%, #0d1540 100%)',
-          borderRadius: '18px', border: '1px solid rgba(155,32,216,0.2)',
-          padding: '18px 18px 18px 20px', marginBottom: '20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <span style={{
-            position: 'absolute', top: '10px', right: '10px',
-            background: 'rgba(255,255,255,0.12)', color: '#aaa', fontSize: '10px',
-            fontWeight: 600, padding: '2px 7px', borderRadius: '6px', fontFamily: 'Poppins, sans-serif',
-          }}>Ad</span>
-          <div>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '17px', color: '#fff', marginBottom: '4px' }}>Play More, Win Big! 🚀</p>
-            <p style={{ color: '#8888aa', fontSize: '12px', marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>Your luck is waiting for you.</p>
-            <button onClick={() => navigate('/draws')} style={{
-              padding: '9px 18px', borderRadius: '50px', border: '1.5px solid rgba(255,255,255,0.3)',
-              background: 'transparent', color: '#fff', fontWeight: 600, fontSize: '13px',
-              cursor: 'pointer', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: '6px',
-            }}>Play Now <span style={{ fontSize: '14px' }}>›</span></button>
-          </div>
-          <div style={{ fontSize: '64px', lineHeight: 1, flexShrink: 0, filter: 'drop-shadow(0 0 12px rgba(240,165,0,0.4))' }}>🎁</div>
-        </div>
+        {(() => {
+          const ad = ads.length > 0 ? ads[adIndex % ads.length] : null
+          return (
+            <div style={{
+              background: 'linear-gradient(135deg, #1a0b38 0%, #0d1540 100%)',
+              borderRadius: '18px', border: '1px solid rgba(155,32,216,0.2)',
+              padding: '18px 18px 18px 20px', marginBottom: '20px',
+              position: 'relative', overflow: 'hidden', minHeight: '100px',
+            }}>
+              <span style={{
+                position: 'absolute', top: '10px', right: '10px',
+                background: 'rgba(255,255,255,0.12)', color: '#aaa', fontSize: '10px',
+                fontWeight: 600, padding: '2px 7px', borderRadius: '6px', fontFamily: 'Poppins, sans-serif', zIndex: 2,
+              }}>Ad</span>
+              {ads.length > 1 && (
+                <div style={{ position: 'absolute', bottom: '10px', right: '12px', display: 'flex', gap: '4px', zIndex: 2 }}>
+                  {ads.map((_, i) => (
+                    <div key={i} onClick={() => setAdIndex(i)} style={{
+                      width: i === adIndex % ads.length ? '16px' : '6px', height: '6px',
+                      borderRadius: '3px', background: i === adIndex % ads.length ? '#f0a500' : 'rgba(255,255,255,0.3)',
+                      cursor: 'pointer', transition: 'all 0.3s',
+                    }} />
+                  ))}
+                </div>
+              )}
+              {ad ? (
+                ad.type === 'image' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <img src={ad.content} alt={ad.title} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '12px', flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    <div>
+                      {ad.title && <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '16px', color: '#fff', marginBottom: '4px' }}>{ad.title}</p>}
+                      {ad.link_url && <button onClick={() => window.open(ad.link_url, '_blank')} style={{ padding: '8px 16px', borderRadius: '50px', border: '1.5px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'Poppins, sans-serif', marginTop: '8px' }}>Learn More ›</button>}
+                    </div>
+                  </div>
+                ) : ad.type === 'video' ? (
+                  <video src={ad.content} autoPlay muted loop playsInline style={{ width: '100%', borderRadius: '12px', maxHeight: '140px', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ flex: 1, paddingRight: '40px' }}>
+                      {ad.title && <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '17px', color: '#fff', marginBottom: '6px' }}>{ad.title}</p>}
+                      <p style={{ color: '#ccc', fontSize: '13px', fontFamily: 'Poppins, sans-serif', lineHeight: '1.5' }}>{ad.content}</p>
+                      {ad.link_url && <button onClick={() => window.open(ad.link_url, '_blank')} style={{ marginTop: '12px', padding: '9px 18px', borderRadius: '50px', border: '1.5px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'Poppins, sans-serif' }}>Learn More ›</button>}
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '17px', color: '#fff', marginBottom: '4px' }}>Play More, Win Big! 🚀</p>
+                    <p style={{ color: '#8888aa', fontSize: '12px', marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>Your luck is waiting for you.</p>
+                    <button onClick={() => navigate('/draws')} style={{ padding: '9px 18px', borderRadius: '50px', border: '1.5px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: '6px' }}>Play Now <span style={{ fontSize: '14px' }}>›</span></button>
+                  </div>
+                  <div style={{ fontSize: '64px', lineHeight: 1, flexShrink: 0, filter: 'drop-shadow(0 0 12px rgba(240,165,0,0.4))' }}>🎁</div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* ── Draw Live Now header ── */}
+        <style>{`
+          @keyframes livePulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0.7); }
+            50% { opacity: 0.5; box-shadow: 0 0 0 6px rgba(74,222,128,0); }
+          }
+        `}</style>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '18px' }}>🏆</span>
             <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '15px', color: '#e8187a', letterSpacing: '1px' }}>DRAW LIVE NOW</span>
+            <span style={{
+              display: 'inline-block', width: '9px', height: '9px', borderRadius: '50%',
+              background: '#4ade80',
+              animation: 'livePulse 1.4s ease-in-out infinite',
+            }} />
           </div>
           <span onClick={() => navigate('/draws')} style={{ color: '#aaa8cc', fontSize: '13px', cursor: 'pointer', fontFamily: 'Poppins, sans-serif' }}>See all draws →</span>
         </div>

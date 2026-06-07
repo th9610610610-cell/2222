@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { db, ticketsTable, drawsTable, usersTable } from '@workspace/db'
+import { db, ticketsTable, drawsTable, usersTable, notificationsTable } from '@workspace/db'
 import { eq, desc, and } from 'drizzle-orm'
 import { requireAuth, AuthRequest } from '../middlewares/auth'
 
@@ -69,6 +69,11 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
   await db.update(usersTable).set({ balance: user.balance - totalCost, tickets_bought: user.tickets_bought + qty }).where(eq(usersTable.id, req.user!.id))
   await db.update(drawsTable).set({ tickets_sold: draw.tickets_sold + qty }).where(eq(drawsTable.id, draw_id))
+
+  await db.insert(notificationsTable).values({
+    user_id: req.user!.id,
+    message: `🎟️ You purchased ${qty} ticket${qty > 1 ? 's' : ''} for draw "${draw.name}" — Total: ৳${totalCost}. Good luck! 🍀`,
+  })
 
   res.status(201).json({ tickets })
 })

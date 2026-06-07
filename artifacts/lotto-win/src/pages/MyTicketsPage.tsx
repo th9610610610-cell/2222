@@ -32,8 +32,8 @@ function TicketModal({ ticket, userName, onClose }: { ticket: Ticket; userName: 
   const claimCode = ticket.claim_code || ticket.id.slice(0,13).toUpperCase()
   return (
     <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.78)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={onClose}>
-      <div style={{ background:'#f0f2f8', borderRadius:'20px', width:'100%', maxWidth:'380px', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }} onClick={e=>e.stopPropagation()}>
-        <div style={{ display:'flex', padding:'20px', gap:'18px', alignItems:'flex-start' }}>
+      <div style={{ background:'#f0f2f8', borderRadius:'20px', width:'100%', maxWidth:'386px', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }} onClick={e=>e.stopPropagation()}>
+        <div style={{ display:'flex', padding:'14px', gap:'18px', alignItems:'flex-start' }}>
           <div style={{ background:'#fff', borderRadius:'12px', padding:'10px', boxShadow:'0 2px 8px rgba(0,0,0,0.1)', flexShrink:0 }}>
             <QRCode value={claimCode} size={110} level="M" />
           </div>

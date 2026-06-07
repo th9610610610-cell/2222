@@ -2,6 +2,7 @@ import { pgTable, text, integer, boolean, timestamp, uuid, pgEnum, uniqueIndex }
 import { createInsertSchema } from 'drizzle-zod'
 
 export const userRoleEnum = pgEnum('user_role', ['user', 'moderator', 'admin'])
+export const adTypeEnum = pgEnum('ad_type', ['text', 'image', 'video'])
 export const drawStatusEnum = pgEnum('draw_status', ['upcoming', 'live', 'ended', 'rescheduled'])
 export const depositStatusEnum = pgEnum('deposit_status', ['pending', 'approved', 'rejected'])
 export const paymentMethodEnum = pgEnum('payment_method', ['bkash', 'nagad', 'rocket'])
@@ -79,6 +80,17 @@ export const settingsTable = pgTable('settings', {
   whatsapp_number: text('whatsapp_number').notNull().default(''),
   payment_number: text('payment_number').notNull().default(''),
   announcement: text('announcement').notNull().default(''),
+})
+
+export const adsTable = pgTable('ads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  type: adTypeEnum('type').notNull().default('text'),
+  title: text('title').notNull().default(''),
+  content: text('content').notNull(),
+  link_url: text('link_url').notNull().default(''),
+  is_active: boolean('is_active').notNull().default(true),
+  display_order: integer('display_order').notNull().default(0),
+  created_at: timestamp('created_at').notNull().defaultNow(),
 })
 
 import { relations } from 'drizzle-orm'
