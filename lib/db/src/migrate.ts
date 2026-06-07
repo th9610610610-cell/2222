@@ -1,8 +1,39 @@
 import pg from 'pg'
 const { Pool } = pg
 
+/**
+ * Parse postgresql:// URL safely, handling passwords with special chars (@, ?, +, etc).
+ * Uses lastIndexOf('@') to correctly find the auth/host boundary.
+ */
+function parsePgUrl(url: string): pg.PoolConfig {
+  try {
+    const protocolEnd = url.indexOf('://')
+    if (protocolEnd === -1) return { connectionString: url }
+    const afterProtocol = url.slice(protocolEnd + 3)
+    const lastAt = afterProtocol.lastIndexOf('@')
+    if (lastAt === -1) return { connectionString: url }
+    const authPart = afterProtocol.slice(0, lastAt)
+    const hostPart = afterProtocol.slice(lastAt + 1)
+    const colonInAuth = authPart.indexOf(':')
+    const user = colonInAuth !== -1 ? authPart.slice(0, colonInAuth) : authPart
+    const rawPass = colonInAuth !== -1 ? authPart.slice(colonInAuth + 1) : ''
+    const password = rawPass.includes('%') ? decodeURIComponent(rawPass) : rawPass
+    const slashInHost = hostPart.indexOf('/')
+    const hostport = slashInHost !== -1 ? hostPart.slice(0, slashInHost) : hostPart
+    const database = slashInHost !== -1 ? hostPart.slice(slashInHost + 1).split('?')[0] : 'postgres'
+    const colonInHost = hostport.lastIndexOf(':')
+    const host = colonInHost !== -1 ? hostport.slice(0, colonInHost) : hostport
+    const port = colonInHost !== -1 ? parseInt(hostport.slice(colonInHost + 1)) : 5432
+    return { user, password, host, port, database }
+  } catch {
+    return { connectionString: url }
+  }
+}
+
 export async function runMigrations(connectionString: string): Promise<void> {
-  const pool = new Pool({ connectionString, ssl: connectionString.includes('sslmode=require') || connectionString.includes('supabase') ? { rejectUnauthorized: false } : false })
+  const isSupabase = connectionString.includes('supabase') || connectionString.includes('sslmode=require')
+  const config = parsePgUrl(connectionString.trim())
+  const pool = new Pool({ ...config, ssl: isSupabase ? { rejectUnauthorized: false } : false })
   const client = await pool.connect()
   try {
     await client.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
@@ -94,13 +125,11 @@ export async function runMigrations(connectionString: string): Promise<void> {
       )
     `)
 
-    // Additive migrations — safe to run on existing databases
     await client.query(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS claim_code TEXT NOT NULL DEFAULT ''`)
     await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS whatsapp_number TEXT NOT NULL DEFAULT ''`)
     await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS payment_number TEXT NOT NULL DEFAULT ''`)
     await client.query(`ALTER TABLE draws ADD COLUMN IF NOT EXISTS draw_number INTEGER`)
 
-    // Assign draw numbers to existing draws that don't have one
     await client.query(`
       UPDATE draws SET draw_number = sub.rn
       FROM (
@@ -109,26 +138,22 @@ export async function runMigrations(connectionString: string): Promise<void> {
       WHERE draws.id = sub.id
     `)
 
-    // Fix tickets foreign key to cascade on delete (if not already)
     await client.query(`
       DO $$ BEGIN
         ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_draw_id_draws_id_fk;
       EXCEPTION WHEN OTHERS THEN null; END $$
     `)
 
-    // Drop old global unique on ticket_ref so we can have per-draw uniqueness
     await client.query(`
       DO $$ BEGIN
         ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_ticket_ref_unique;
       EXCEPTION WHEN OTHERS THEN null; END $$
     `)
 
-    // Add composite unique index (draw_id + ticket_ref)
     await client.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS tickets_draw_ticket_unique ON tickets(draw_id, ticket_ref)
     `)
 
-    // Populate claim_code for existing tickets that don't have one
     await client.query(`
       UPDATE tickets SET claim_code = upper(substring(md5(id::text || draw_id::text), 1, 13))
       WHERE claim_code = '' OR claim_code IS NULL
