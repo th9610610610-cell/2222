@@ -32,8 +32,9 @@ router.post('/register', async (req, res) => {
     return res.status(201).json({ user })
   } catch (err: any) {
     if (err?.issues) return res.status(400).json({ error: err.issues[0]?.message || 'Validation error' })
-    console.error('[register error]', err?.message || err)
-    return res.status(500).json({ error: 'Registration failed', detail: err?.message })
+    console.error('[register error]', err)
+    const detail = err?.cause?.message || err?.message || String(err)
+    return res.status(500).json({ error: 'Registration failed', detail, code: err?.code, cause: err?.cause?.message })
   }
 })
 
@@ -52,8 +53,9 @@ router.post('/login', async (req, res) => {
     const { password_hash: _, ...safeUser } = user
     return res.json({ token, user: safeUser })
   } catch (err: any) {
-    console.error('[login error]', err?.message || err)
-    return res.status(500).json({ error: 'Login failed', detail: err?.message })
+    console.error('[login error]', err)
+    const detail = err?.cause?.message || err?.message || String(err)
+    return res.status(500).json({ error: 'Login failed', detail, code: err?.code, cause: err?.cause?.message })
   }
 })
 
