@@ -10,10 +10,14 @@ export interface User {
   total_won: number
   tickets_bought: number
   is_flagged: boolean
+  referral_bonus_pct: number
+  referral_bonus_expires: string | null
   created_at: string
 }
 
 export type DrawStatus = 'upcoming' | 'live' | 'ended' | 'rescheduled'
+
+export type DrawBackgroundType = 'natural' | 'custom' | 'picture'
 
 export interface Draw {
   id: string
@@ -28,6 +32,8 @@ export interface Draw {
   winner_id: string | null
   winner_name: string | null
   winner_ticket: string | null
+  background_type: DrawBackgroundType
+  background_image_url: string
   created_at: string
 }
 
