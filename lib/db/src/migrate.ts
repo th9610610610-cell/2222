@@ -1,10 +1,6 @@
 import pg from 'pg'
 const { Pool } = pg
 
-/**
- * Parse postgresql:// URL safely, handling passwords with special chars (@, ?, +, etc).
- * Uses lastIndexOf('@') to correctly find the auth/host boundary.
- */
 function parsePgUrl(url: string): pg.PoolConfig {
   try {
     const protocolEnd = url.indexOf('://')
@@ -178,6 +174,14 @@ export async function runMigrations(connectionString: string): Promise<void> {
       UPDATE tickets SET claim_code = upper(substring(md5(id::text || draw_id::text), 1, 13))
       WHERE claim_code = '' OR claim_code IS NULL
     `)
+
+    // Feature: Draw background types
+    await client.query(`ALTER TABLE draws ADD COLUMN IF NOT EXISTS background_type TEXT NOT NULL DEFAULT 'natural'`)
+    await client.query(`ALTER TABLE draws ADD COLUMN IF NOT EXISTS background_image_url TEXT NOT NULL DEFAULT ''`)
+
+    // Feature: Referral discount system
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_bonus_pct INTEGER NOT NULL DEFAULT 0`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_bonus_expires TIMESTAMP`)
 
     console.log('[migrate] All migrations applied successfully')
   } catch (err) {
