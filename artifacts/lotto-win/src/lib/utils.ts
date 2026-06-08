@@ -35,6 +35,21 @@ export function formatDateTime(date: string): string {
   })
 }
 
+export function formatTimeLeft(endDate: string): string {
+  const end = new Date(endDate).getTime()
+  const now = Date.now()
+  const diff = end - now
+  if (diff <= 0) return 'Ended'
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  if (days >= 2) return `${days} Days Left`
+  if (days === 1) return `1 Day Left`
+  if (hours > 0) return `${hours} Hours Left`
+  if (mins > 0) return `${mins} Min Left`
+  return 'Ending Soon'
+}
+
 export function formatCurrency(amount: number | string): string {
   return `৳${Number(amount).toLocaleString('en-BD')}`
 }

@@ -14,24 +14,19 @@ interface WinnerTicket {
   created_at: string
 }
 
-const CARD_TEMPLATES = [
-  { bg: 'linear-gradient(135deg, #1a0b38 0%, #0d1540 100%)', accent: '#9b20d8', stripe: '#7b10b8', label: 'LOTTO' },
-  { bg: 'linear-gradient(135deg, #1a0520 0%, #2d0a10 100%)', accent: '#e8187a', stripe: '#c8106a', label: 'LUCKY' },
-  { bg: 'linear-gradient(135deg, #0a1a30 0%, #0d2040 100%)', accent: '#22d3ee', stripe: '#10b8cc', label: 'DRAW' },
-  { bg: 'linear-gradient(135deg, #1a1500 0%, #2a2000 100%)', accent: '#f0a500', stripe: '#d09000', label: 'GOLD' },
-  { bg: 'linear-gradient(135deg, #001a0a 0%, #002a14 100%)', accent: '#4ade80', stripe: '#2ab860', label: 'WIN' },
-  { bg: 'linear-gradient(135deg, #1a0010 0%, #300020 100%)', accent: '#f472b6', stripe: '#e060a0', label: 'PRIZE' },
-  { bg: 'linear-gradient(135deg, #0a0a1a 0%, #12122a 100%)', accent: '#a78bfa', stripe: '#8b70e0', label: 'MEGA' },
-  { bg: 'linear-gradient(135deg, #1a0a00 0%, #2a1500 100%)', accent: '#fb923c', stripe: '#e07820', label: 'SUPER' },
+const VINTAGE_TEMPLATES = [
+  { bg: '#c0392b', stubBg: '#a93226', border: '#e74c3c', text: '#fff', accent: '#ffcdd2', sideNum: true, star: true, label: 'LOTTO WIN' },
+  { bg: '#1a2a4a', stubBg: '#121e36', border: '#2c4a8a', text: '#fff', accent: '#90caf9', sideNum: false, star: false, label: 'LUCKY DRAW' },
+  { bg: '#c9950a', stubBg: '#a87e08', border: '#daa520', text: '#2a1800', accent: '#4a3000', sideNum: false, star: false, label: 'ADMIT ONE', admitOne: true },
+  { bg: '#1a7575', stubBg: '#155e5e', border: '#20a0a0', text: '#fff', accent: '#80deea', sideNum: false, star: true, label: 'WINNER' },
+  { bg: '#6a2fa0', stubBg: '#551f88', border: '#9b59d8', text: '#fff', accent: '#e040fb', sideNum: true, star: false, label: 'MEGA PRIZE' },
+  { bg: '#c8b98a', stubBg: '#b09a6a', border: '#a0885a', text: '#2a1800', accent: '#4a3000', sideNum: false, star: false, label: 'PRIZE', barcode: true },
+  { bg: '#4a5c2a', stubBg: '#384520', border: '#6a7c3a', text: '#fff', accent: '#c5e1a5', sideNum: false, star: true, label: 'SUPER WIN' },
+  { bg: '#1a1a1a', stubBg: '#0d0d0d', border: '#3a3a3a', text: '#d4af37', accent: '#ffd700', sideNum: true, star: false, label: 'ROYAL', crown: true },
 ]
 
-function TicketCard({
-  ticket,
-  isWinner,
-  canPick,
-  picking,
-  onPick,
-  idx,
+function VintageTicket({
+  ticket, isWinner, canPick, picking, onPick, idx,
 }: {
   ticket: WinnerTicket
   isWinner: boolean
@@ -41,104 +36,151 @@ function TicketCard({
   idx: number
 }) {
   const tpl = isWinner
-    ? { bg: 'linear-gradient(135deg, #2a1800 0%, #3a2200 100%)', accent: '#f0a500', stripe: '#d09000', label: 'WIN' }
-    : CARD_TEMPLATES[idx % CARD_TEMPLATES.length]
+    ? { bg: '#1a1200', stubBg: '#0d0a00', border: '#d4af37', text: '#ffd700', accent: '#ffd700', sideNum: true, star: true, label: '🏆 WINNER', crown: true }
+    : VINTAGE_TEMPLATES[idx % VINTAGE_TEMPLATES.length]
+
+  const sideNum = ticket.ticket_ref.slice(-6).toUpperCase()
 
   return (
     <div
       onClick={() => canPick && !picking && onPick(ticket.id)}
       style={{
-        background: tpl.bg,
-        borderRadius: '14px',
-        border: isWinner ? '2px solid #f0a500' : `1.5px solid ${tpl.accent}44`,
-        overflow: 'hidden',
-        cursor: canPick ? 'pointer' : 'default',
         position: 'relative',
-        boxShadow: isWinner
-          ? '0 0 20px rgba(240,165,0,0.35), 0 4px 16px rgba(0,0,0,0.5)'
-          : '0 4px 12px rgba(0,0,0,0.4)',
+        cursor: canPick ? 'pointer' : 'default',
+        filter: isWinner ? 'drop-shadow(0 0 10px rgba(212,175,55,0.5))' : 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))',
         animation: isWinner ? 'winnerPulse 2s ease-in-out infinite' : 'none',
-        transition: 'transform 0.15s',
+        marginBottom: '2px',
       }}
     >
-      {/* Top colored stripe */}
+      {/* Ticket body */}
       <div style={{
-        height: '6px',
-        background: isWinner
-          ? 'linear-gradient(90deg, #f0a500, #e8187a, #f0a500)'
-          : `linear-gradient(90deg, ${tpl.accent}, ${tpl.stripe}, ${tpl.accent})`,
-      }} />
-
-      {/* Main content */}
-      <div style={{ padding: '10px 12px 8px' }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <span style={{
-            fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '9px',
-            color: isWinner ? '#f0a500' : tpl.accent, letterSpacing: '2px',
-          }}>{isWinner ? '🏆 WINNER' : tpl.label}</span>
-          {isWinner && <span style={{ fontSize: '14px' }}>🏆</span>}
-        </div>
-
-        {/* Ticket icon + perforated line */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <svg width="32" height="20" viewBox="0 0 48 30" fill="none" style={{ flexShrink: 0 }}>
-            <path
-              d="M4 0 H44 A4 4 0 0 1 48 4 V10 A5 5 0 0 0 48 20 V26 A4 4 0 0 1 44 30 H4 A4 4 0 0 1 0 26 V20 A5 5 0 0 0 0 10 V4 A4 4 0 0 1 4 0 Z"
-              fill={isWinner ? 'rgba(240,165,0,0.18)' : `${tpl.accent}22`}
-              stroke={isWinner ? '#f0a500' : tpl.accent}
-              strokeWidth="2"
-            />
-            <line x1="16" y1="2" x2="16" y2="28"
-              stroke={isWinner ? '#f0a500' : tpl.accent}
-              strokeWidth="1.4" strokeDasharray="3 2.5" />
-          </svg>
-          <div style={{ flex: 1, height: '1px', backgroundImage: `repeating-linear-gradient(90deg, ${isWinner ? '#f0a500' : tpl.accent}55 0, ${isWinner ? '#f0a500' : tpl.accent}55 4px, transparent 4px, transparent 8px)` }} />
-        </div>
-
-        {/* Ticket number */}
-        <p style={{
-          fontFamily: 'Courier New, monospace', fontWeight: 900, fontSize: '14px',
-          color: isWinner ? '#f0a500' : '#fff',
-          letterSpacing: '2px', marginBottom: '4px',
-          textShadow: isWinner ? '0 0 12px rgba(240,165,0,0.6)' : 'none',
-        }}>#{ticket.ticket_ref}</p>
-
-        {ticket.user_name && (
-          <p style={{
-            color: '#8888aa', fontSize: '10px', fontFamily: 'Poppins, sans-serif',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            marginBottom: '6px',
-          }}>{ticket.user_name}</p>
+        display: 'flex',
+        background: tpl.bg,
+        borderRadius: '8px',
+        border: `2px solid ${tpl.border}`,
+        overflow: 'hidden',
+        position: 'relative',
+        minHeight: '70px',
+      }}>
+        {/* Left side numbers (for some templates) */}
+        {tpl.sideNum && (
+          <div style={{
+            width: '20px', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRight: `1.5px dashed ${tpl.text}44`,
+            padding: '4px 2px',
+          }}>
+            <span style={{
+              fontFamily: 'Courier New, monospace', fontSize: '8px',
+              color: tpl.text, opacity: 0.6, letterSpacing: '1px',
+              writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+            }}>{sideNum}</span>
+          </div>
         )}
+
+        {/* Main body */}
+        <div style={{
+          flex: 1, padding: '8px 10px',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          position: 'relative',
+        }}>
+          {/* Inner border frame */}
+          <div style={{
+            position: 'absolute', inset: '4px',
+            border: `1px solid ${tpl.text}30`,
+            borderRadius: '4px',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Stars */}
+          {tpl.star && (
+            <>
+              <span style={{ position: 'absolute', top: '6px', left: tpl.sideNum ? '8px' : '6px', color: tpl.text, fontSize: '9px', opacity: 0.7 }}>★</span>
+              <span style={{ position: 'absolute', bottom: '6px', left: tpl.sideNum ? '8px' : '6px', color: tpl.text, fontSize: '9px', opacity: 0.7 }}>★</span>
+            </>
+          )}
+          {(tpl as any).crown && (
+            <span style={{ position: 'absolute', top: '5px', left: '50%', transform: 'translateX(-50%)', color: tpl.accent, fontSize: '10px' }}>♛</span>
+          )}
+
+          {/* Ticket number */}
+          <div style={{ textAlign: 'center', paddingTop: (tpl as any).crown ? '12px' : '0' }}>
+            <span style={{
+              fontFamily: 'Arial Black, sans-serif', fontWeight: 900,
+              fontSize: '16px', color: tpl.text,
+              letterSpacing: '2px',
+              textShadow: isWinner ? '0 0 10px rgba(255,215,0,0.8)' : 'none',
+            }}>TKT-{ticket.ticket_ref}</span>
+          </div>
+
+          {/* Username */}
+          {ticket.user_name && (
+            <div style={{ textAlign: 'center', marginTop: '2px' }}>
+              <span style={{ fontSize: '9px', color: tpl.text, opacity: 0.55, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.5px' }}>
+                {ticket.user_name.toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Perforated divider + stub */}
+        <div style={{
+          width: '1.5px',
+          background: `repeating-linear-gradient(to bottom, ${tpl.text}55 0, ${tpl.text}55 4px, transparent 4px, transparent 8px)`,
+          flexShrink: 0,
+        }} />
+
+        {/* Stub / right side */}
+        <div style={{
+          width: '36px', flexShrink: 0,
+          background: tpl.stubBg,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '4px 2px',
+          gap: '4px',
+        }}>
+          {(tpl as any).admitOne ? (
+            <span style={{
+              fontFamily: 'Georgia, serif', fontSize: '7px',
+              color: tpl.text, opacity: 0.8, letterSpacing: '1px',
+              writingMode: 'vertical-rl', textAlign: 'center',
+            }}>ADMIT ONE</span>
+          ) : (tpl as any).barcode ? (
+            <svg width="18" height="40" viewBox="0 0 18 40">
+              {[0,1,2,3,4,5,6,7,8].map(i => (
+                <rect key={i} x={i * 2} y="2" width={i % 3 === 0 ? 2 : 1} height="36"
+                  fill={tpl.text} opacity="0.6" />
+              ))}
+            </svg>
+          ) : (
+            <span style={{
+              fontFamily: 'Courier New, monospace', fontSize: '8px',
+              color: tpl.text, opacity: 0.6, letterSpacing: '1px',
+              writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+            }}>{sideNum}</span>
+          )}
+        </div>
       </div>
 
-      {/* Bottom barcode strip */}
-      <div style={{
-        height: '20px', margin: '0 12px 10px',
-        background: `repeating-linear-gradient(90deg, ${isWinner ? '#f0a500' : tpl.accent}cc 0, ${isWinner ? '#f0a500' : tpl.accent}cc 2px, transparent 2px, transparent 4px)`,
-        borderRadius: '2px', opacity: 0.4,
-      }} />
-
-      {/* Hover overlay for clickable */}
-      {canPick && (
-        <div style={{
-          position: 'absolute', inset: 0, background: `${tpl.accent}00`,
-          borderRadius: '14px', transition: 'background 0.2s',
-        }}
-          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = `${tpl.accent}12` }}
-          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = `${tpl.accent}00` }}
-        />
-      )}
-
-      {/* Loading spinner */}
+      {/* Loading overlay */}
       {picking === ticket.id && (
         <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px',
+          position: 'absolute', inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          borderRadius: '8px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{ width: '20px', height: '20px', border: '2px solid #f0a500', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
         </div>
+      )}
+
+      {/* Hover highlight */}
+      {canPick && (
+        <div
+          style={{ position: 'absolute', inset: 0, borderRadius: '8px', background: 'transparent', transition: 'background 0.15s' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.07)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+        />
       )}
     </div>
   )
@@ -220,8 +262,8 @@ export default function WinnerPage() {
     <div style={{ minHeight: '100vh', background: '#08071a', padding: '0 0 40px' }}>
       <style>{`
         @keyframes winnerPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(240,165,0,0.5); }
-          50% { box-shadow: 0 0 0 8px rgba(240,165,0,0); }
+          0%, 100% { filter: drop-shadow(0 0 6px rgba(212,175,55,0.5)); }
+          50% { filter: drop-shadow(0 0 18px rgba(212,175,55,0.9)); }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
@@ -299,7 +341,6 @@ export default function WinnerPage() {
                     background: 'linear-gradient(90deg, rgba(240,165,0,0.2), rgba(232,24,122,0.2))',
                     borderRadius: '12px', padding: '14px 16px',
                     border: '1px solid rgba(240,165,0,0.4)',
-                    animation: 'winnerPulse 2s ease-in-out infinite',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '28px' }}>🏆</span>
@@ -329,9 +370,9 @@ export default function WinnerPage() {
                   <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px', textAlign: 'center' }}>
                     {tickets.length} tickets · shuffled for fairness
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {tickets.map((ticket, idx) => (
-                      <TicketCard
+                      <VintageTicket
                         key={ticket.id}
                         ticket={ticket}
                         isWinner={ticket.is_winner}
