@@ -1,12 +1,16 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import helmetLib from "helmet";
+import rateLimitLib from "express-rate-limit";
 import pinoHttpLib from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 // Handle both CJS default and named exports across environments
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const helmet: any = (helmetLib as any).default ?? helmetLib;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rateLimit: any = (rateLimitLib as any).default ?? rateLimitLib;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const pinoHttp: any = (pinoHttpLib as any).default ?? pinoHttpLib;
 
