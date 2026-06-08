@@ -8,6 +8,7 @@ import userRouter from './user'
 import adminRouter from './admin'
 import settingsRouter from './settings'
 import adsRouter from './ads'
+import winnerRouter from './winner'
 
 const router = Router()
 
@@ -20,5 +21,6 @@ router.use('/user', userRouter)
 router.use('/admin', adminRouter)
 router.use('/settings', settingsRouter)
 router.use('/ads', adsRouter)
+router.use('/winner', winnerRouter)
 
 export default router
