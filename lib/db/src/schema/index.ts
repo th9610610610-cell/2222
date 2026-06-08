@@ -18,6 +18,8 @@ export const usersTable = pgTable('users', {
   total_won: integer('total_won').notNull().default(0),
   tickets_bought: integer('tickets_bought').notNull().default(0),
   is_flagged: boolean('is_flagged').notNull().default(false),
+  referral_bonus_pct: integer('referral_bonus_pct').notNull().default(0),
+  referral_bonus_expires: timestamp('referral_bonus_expires'),
   created_at: timestamp('created_at').notNull().defaultNow(),
 })
 
@@ -34,6 +36,8 @@ export const drawsTable = pgTable('draws', {
   winner_id: uuid('winner_id'),
   winner_name: text('winner_name'),
   winner_ticket: text('winner_ticket'),
+  background_type: text('background_type').notNull().default('natural'),
+  background_image_url: text('background_image_url').notNull().default(''),
   created_at: timestamp('created_at').notNull().defaultNow(),
 })
 
