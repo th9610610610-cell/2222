@@ -196,7 +196,7 @@ export default function AdminPage() {
       </div>
 
       <div style={{ padding: '18px' }}>
-        {msg && <div style={{ background: 'rgba(80,200,80,0.15)', border: '1px solid rgba(80,200,80,0.4)', borderRadius: '8px', padding: '10px 14px', color: '#4f4', fontSize: '13px', marginBottom: '16px' }}>{msg} <span onClick={() => setMsg('')} style={{ float: 'right', cursor: 'pointer' }}>✕</span></div>}
+        {msg && <div style={{ background: msg.startsWith('❌') ? 'rgba(232,24,122,0.12)' : 'rgba(80,200,80,0.15)', border: `1px solid ${msg.startsWith('❌') ? 'rgba(232,24,122,0.4)' : 'rgba(80,200,80,0.4)'}`, borderRadius: '8px', padding: '10px 14px', color: msg.startsWith('❌') ? '#ff6699' : '#4f4', fontSize: '13px', marginBottom: '16px' }}>{msg} <span onClick={() => setMsg('')} style={{ float: 'right', cursor: 'pointer' }}>✕</span></div>}
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
           {(['deposits', 'draws', 'users', 'settings', 'ads'] as Tab[]).map(t => (
@@ -353,7 +353,7 @@ export default function AdminPage() {
                   if (!newAd.content.trim()) { setMsg('Content is required'); return }
                   const res = await fetch(`${BASE}/api/ads`, { method: 'POST', headers, body: JSON.stringify(newAd) })
                   if (res.ok) { setMsg('✅ Ad created!'); setNewAd({ type: 'text', title: '', content: '', link_url: '' }); loadAll() }
-                  else setMsg('❌ Failed to create ad')
+                  else { const d = await res.json().catch(() => ({})); setMsg(`❌ ${d.error || 'Failed to create ad'} (status ${res.status})`) }
                 }} style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>
                   + Post Ad
                 </button>
@@ -415,8 +415,8 @@ export default function AdminPage() {
                     type="button"
                     onClick={async () => {
                       const res = await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
-                      if (res.ok) setMsg(settings.announcement ? '📢 Announcement published!' : '🗑 Announcement removed')
-                      else setMsg('❌ Failed! Make sure you have admin role.')
+                      if (res.ok) setMsg(settings.announcement ? '📢 Announcement published! All users notified.' : '🗑 Announcement removed')
+                      else { const d = await res.json().catch(() => ({})); setMsg(`❌ ${d.error || 'Failed to save'} (status ${res.status})`) }
                     }}
                     style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: settings.announcement ? 'linear-gradient(90deg, #f0a500, #e8187a)' : 'rgba(136,136,170,0.2)', color: '#fff', fontWeight: 700, fontSize: '13px' }}
                   >
