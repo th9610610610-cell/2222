@@ -26,12 +26,12 @@ export default function AdminPage() {
   const [newAd, setNewAd] = useState({ type: 'text', title: '', content: '', link_url: '' })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
-  const [newDraw, setNewDraw] = useState({ name: '', jackpot: '', ticket_price: '', max_tickets: '', end_date: '' })
+  const [newDraw, setNewDraw] = useState({
+    name: '', jackpot: '', ticket_price: '', max_tickets: '', end_date: '',
+    background_type: 'natural', background_image_url: '',
+  })
 
-  // Rejection modal state
   const [rejectModal, setRejectModal] = useState<{ depositId: string } | null>(null)
-
-  // Reschedule modal state
   const [rescheduleModal, setRescheduleModal] = useState<{ drawId: string; drawName: string } | null>(null)
   const [newEndDate, setNewEndDate] = useState('')
 
@@ -64,7 +64,6 @@ export default function AdminPage() {
     }
   }
 
-  // Sort: pending first (oldest at top = FIFO), then non-pending (newest at top)
   const sortedDeposits = [...deposits].sort((a, b) => {
     if (a.status === 'pending' && b.status !== 'pending') return -1
     if (a.status !== 'pending' && b.status === 'pending') return 1
@@ -100,9 +99,18 @@ export default function AdminPage() {
     e.preventDefault()
     const res = await fetch(`${BASE}/api/draws`, {
       method: 'POST', headers,
-      body: JSON.stringify({ ...newDraw, jackpot: Number(newDraw.jackpot), ticket_price: Number(newDraw.ticket_price), max_tickets: Number(newDraw.max_tickets) }),
+      body: JSON.stringify({
+        ...newDraw,
+        jackpot: Number(newDraw.jackpot),
+        ticket_price: Number(newDraw.ticket_price),
+        max_tickets: Number(newDraw.max_tickets),
+      }),
     })
-    if (res.ok) { setMsg('Draw created'); setNewDraw({ name: '', jackpot: '', ticket_price: '', max_tickets: '', end_date: '' }); loadAll() }
+    if (res.ok) {
+      setMsg('Draw created')
+      setNewDraw({ name: '', jackpot: '', ticket_price: '', max_tickets: '', end_date: '', background_type: 'natural', background_image_url: '' })
+      loadAll()
+    }
   }
 
   const updateDraw = async (id: string, updates: Partial<Draw>) => {
@@ -157,16 +165,16 @@ export default function AdminPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#100f28', borderRadius: '18px', border: '1px solid rgba(232,24,122,0.4)', padding: '24px', width: '100%', maxWidth: '340px' }}>
             <h3 style={{ color: '#fff', fontWeight: 700, fontFamily: 'Poppins, sans-serif', marginBottom: '6px' }}>❌ Reject Deposit</h3>
-            <p style={{ color: '#8888aa', fontSize: '13px', marginBottom: '18px' }}>Select a reason for rejection:</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
-              {REJECT_REASONS.map((reason, i) => (
-                <button key={i} onClick={() => processDeposit(rejectModal.depositId, 'reject', reason)}
-                  style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(232,24,122,0.3)', background: 'rgba(232,24,122,0.08)', color: '#fff', textAlign: 'left', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}>
-                  <span style={{ color: '#e8187a', fontWeight: 700 }}>{i + 1}.</span> {reason}
+            <p style={{ color: '#8888aa', fontSize: '13px', marginBottom: '16px' }}>Select a reason:</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+              {REJECT_REASONS.map(r => (
+                <button key={r} onClick={() => processDeposit(rejectModal.depositId, 'reject', r)}
+                  style={{ padding: '10px', borderRadius: '8px', border: '1px solid rgba(232,24,122,0.3)', background: 'rgba(232,24,122,0.1)', color: '#e8187a', cursor: 'pointer', fontWeight: 600, fontSize: '13px', textAlign: 'left' }}>
+                  {r}
                 </button>
               ))}
             </div>
-            <button onClick={() => setRejectModal(null)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+            <button onClick={() => setRejectModal(null)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: 'rgba(136,136,170,0.2)', color: '#aaa', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
           </div>
         </div>
       )}
@@ -175,46 +183,51 @@ export default function AdminPage() {
       {rescheduleModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ background: '#100f28', borderRadius: '18px', border: '1px solid rgba(240,165,0,0.4)', padding: '24px', width: '100%', maxWidth: '340px' }}>
-            <h3 style={{ color: '#fff', fontWeight: 700, fontFamily: 'Poppins, sans-serif', marginBottom: '6px' }}>🔄 Reschedule Draw</h3>
-            <p style={{ color: '#8888aa', fontSize: '13px', marginBottom: '16px' }}>{rescheduleModal.drawName}</p>
-            <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '6px', display: 'block' }}>New End Date</label>
+            <h3 style={{ color: '#fff', fontWeight: 700, fontFamily: 'Poppins, sans-serif', marginBottom: '6px' }}>🔄 Reschedule: {rescheduleModal.drawName}</h3>
+            <p style={{ color: '#8888aa', fontSize: '13px', marginBottom: '14px' }}>New end date:</p>
             <input type="datetime-local" value={newEndDate} onChange={e => setNewEndDate(e.target.value)} style={{ ...inputStyle, marginBottom: '16px' }} />
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={rescheduleDraw} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(240,165,0,0.2)', color: '#f0a500', fontWeight: 700, fontSize: '13px' }}>🔄 Reschedule</button>
-              <button onClick={() => { setRescheduleModal(null); setNewEndDate('') }} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+              <button onClick={rescheduleDraw} disabled={!newEndDate} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: newEndDate ? 'pointer' : 'not-allowed', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700, opacity: newEndDate ? 1 : 0.5 }}>Reschedule</button>
+              <button onClick={() => { setRescheduleModal(null); setNewEndDate('') }} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'rgba(136,136,170,0.2)', color: '#aaa', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{ background: '#0e0c24', borderBottom: '1px solid rgba(155,32,216,0.3)', padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: '#f0a500', fontSize: '20px' }}>♛</span>
-          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '16px' }}>Admin Panel</span>
+      <div style={{ padding: '20px 16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '22px', color: '#fff' }}>🔐 Admin Panel</h1>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => navigate('/winner')} style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(240,165,0,0.15)', color: '#f0a500', fontWeight: 600, fontSize: '13px' }}>🏆 Winners</button>
+            <button onClick={() => { localStorage.removeItem('lw_token'); navigate('/lw-secure-7x9k') }} style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontWeight: 600, fontSize: '13px' }}>Logout</button>
+          </div>
         </div>
-        <button onClick={() => navigate('/')} style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(155,32,216,0.3)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: '13px' }}>← App</button>
-      </div>
 
-      <div style={{ padding: '18px' }}>
-        {msg && <div style={{ background: msg.startsWith('❌') ? 'rgba(232,24,122,0.12)' : 'rgba(80,200,80,0.15)', border: `1px solid ${msg.startsWith('❌') ? 'rgba(232,24,122,0.4)' : 'rgba(80,200,80,0.4)'}`, borderRadius: '8px', padding: '10px 14px', color: msg.startsWith('❌') ? '#ff6699' : '#4f4', fontSize: '13px', marginBottom: '16px' }}>{msg} <span onClick={() => setMsg('')} style={{ float: 'right', cursor: 'pointer' }}>✕</span></div>}
+        {msg && (
+          <div style={{ background: 'rgba(80,200,80,0.12)', border: '1px solid rgba(80,200,80,0.3)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', color: '#4f4', fontSize: '13px' }}>
+            {msg} <button onClick={() => setMsg('')} style={{ float: 'right', background: 'none', border: 'none', color: '#4f4', cursor: 'pointer' }}>✕</button>
+          </div>
+        )}
 
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '20px' }}>
           {(['deposits', 'draws', 'users', 'settings', 'ads'] as Tab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={tabStyle(t)}>{t === 'ads' ? '📢 Ads' : t.charAt(0).toUpperCase() + t.slice(1)}</button>
+            <button key={t} onClick={() => setTab(t)} style={{ ...tabStyle(t), flexShrink: 0 }}>
+              {t === 'deposits' ? '💰 Deposits' : t === 'draws' ? '🏆 Draws' : t === 'users' ? '👥 Users' : t === 'settings' ? '⚙️ Settings' : '📢 Ads'}
+            </button>
           ))}
         </div>
-
-        {loading && <p style={{ color: '#8888aa', textAlign: 'center' }}>Loading...</p>}
 
         {/* DEPOSITS TAB */}
         {tab === 'deposits' && !loading && (
           <>
             <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>
-              Deposits · <span style={{ color: '#f0a500' }}>{sortedDeposits.filter(d => d.status === 'pending').length} Pending</span>
+              Deposits ({sortedDeposits.filter(d => d.status === 'pending').length} pending)
             </h3>
+            {sortedDeposits.length === 0 && <p style={{ color: '#8888aa', textAlign: 'center', padding: '24px' }}>No deposits yet.</p>}
             {sortedDeposits.map(dep => (
-              <div key={dep.id} style={{ ...cardStyle, borderColor: dep.status === 'pending' ? 'rgba(240,165,0,0.35)' : 'rgba(155,32,216,0.15)', opacity: dep.status !== 'pending' ? 0.7 : 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div key={dep.id} style={{ ...cardStyle, border: `1px solid ${dep.status === 'pending' ? 'rgba(240,165,0,0.4)' : dep.status === 'approved' ? 'rgba(80,200,80,0.2)' : 'rgba(232,24,122,0.2)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                   <div>
                     <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{dep.user?.full_name || '—'} · {dep.user?.phone}</p>
                     <p style={{ color: '#8888aa', fontSize: '12px' }}>via {dep.method} · {formatDate(dep.created_at)}</p>
@@ -259,6 +272,68 @@ export default function AdminPage() {
                   <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>End Date</label>
                   <input type="datetime-local" value={newDraw.end_date} onChange={e => setNewDraw(f => ({ ...f, end_date: e.target.value }))} required style={inputStyle} />
                 </div>
+
+                {/* Background Type Selection */}
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '6px', display: 'block' }}>🎨 Card Background</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[
+                      { value: 'natural', label: '🌌 Natural', desc: 'Deep purple/blue' },
+                      { value: 'custom', label: '🔥 Custom', desc: 'Crimson/dark' },
+                      { value: 'picture', label: '🖼️ Picture', desc: 'Your image' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setNewDraw(f => ({ ...f, background_type: opt.value }))}
+                        style={{
+                          flex: 1, padding: '10px 6px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+                          background: newDraw.background_type === opt.value
+                            ? 'linear-gradient(135deg, #9b20d8, #e8187a)'
+                            : 'rgba(155,32,216,0.1)',
+                          color: '#fff', fontWeight: 600, fontSize: '12px',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                          boxShadow: newDraw.background_type === opt.value ? '0 0 12px rgba(155,32,216,0.5)' : 'none',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <span style={{ fontSize: '16px' }}>{opt.label.split(' ')[0]}</span>
+                        <span style={{ fontSize: '11px', opacity: 0.85 }}>{opt.label.split(' ').slice(1).join(' ')}</span>
+                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}>{opt.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Picture URL input (only for picture type) */}
+                {newDraw.background_type === 'picture' && (
+                  <div>
+                    <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>🔗 Background Image URL</label>
+                    <input
+                      type="url"
+                      value={newDraw.background_image_url}
+                      onChange={e => setNewDraw(f => ({ ...f, background_image_url: e.target.value }))}
+                      placeholder="https://example.com/image.jpg"
+                      style={inputStyle}
+                    />
+                    <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>A dark overlay will be applied automatically over the image.</p>
+                  </div>
+                )}
+
+                {/* Preview of selected background */}
+                <div style={{
+                  height: '60px', borderRadius: '10px', overflow: 'hidden',
+                  background: newDraw.background_type === 'custom'
+                    ? 'linear-gradient(145deg, #1a0520 0%, #2d0a10 40%, #0a1a30 100%)'
+                    : newDraw.background_type === 'picture' && newDraw.background_image_url
+                      ? `linear-gradient(rgba(10,5,30,0.8), rgba(10,10,40,0.7)), url(${newDraw.background_image_url}) center/cover`
+                      : 'linear-gradient(145deg, #2a0e50 0%, #150d40 45%, #0d1a50 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '12px', color: 'rgba(255,255,255,0.5)', fontFamily: 'Poppins, sans-serif',
+                }}>
+                  Preview background
+                </div>
+
                 <button type="submit" style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>Create Draw</button>
               </form>
             </div>
@@ -268,6 +343,7 @@ export default function AdminPage() {
                   <div>
                     <p style={{ color: '#fff', fontWeight: 600, fontSize: '15px' }}>{draw.name}</p>
                     <p style={{ color: '#8888aa', fontSize: '12px' }}>Jackpot: {formatJackpot(draw.jackpot)} · {draw.tickets_sold}/{draw.max_tickets} tickets</p>
+                    <p style={{ color: '#666', fontSize: '11px' }}>BG: {draw.background_type || 'natural'}</p>
                   </div>
                   <span style={{ color: statusColor(draw.status), fontWeight: 700, fontSize: '12px' }}>{draw.status.toUpperCase()}</span>
                 </div>
@@ -276,7 +352,10 @@ export default function AdminPage() {
                     <button onClick={() => updateDraw(draw.id, { status: 'live' })} style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.2)', color: '#e8187a', fontWeight: 600, fontSize: '12px' }}>▶ Go Live</button>
                   )}
                   {draw.status === 'live' && (
-                    <button onClick={() => selectWinner(draw.id)} style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(240,165,0,0.2)', color: '#f0a500', fontWeight: 600, fontSize: '12px' }}>🏆 Select Winner</button>
+                    <>
+                      <button onClick={() => navigate('/winner')} style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(240,165,0,0.2)', color: '#f0a500', fontWeight: 600, fontSize: '12px' }}>🏆 Pick Winner</button>
+                      <button onClick={() => selectWinner(draw.id)} style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(155,32,216,0.2)', color: '#9b20d8', fontWeight: 600, fontSize: '12px' }}>🎲 Random</button>
+                    </>
                   )}
                   {(draw.status === 'upcoming' || draw.status === 'live') && (
                     <button onClick={() => setRescheduleModal({ drawId: draw.id, drawName: draw.name })} style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(240,165,0,0.15)', color: '#f0a500', fontWeight: 600, fontSize: '12px' }}>🔄 Reschedule</button>
@@ -303,6 +382,9 @@ export default function AdminPage() {
                     <p style={{ color: '#fff', fontWeight: 600 }}>{u.full_name}</p>
                     <p style={{ color: '#8888aa', fontSize: '12px' }}>{u.phone} · {u.role}</p>
                     <p style={{ color: '#8888aa', fontSize: '12px' }}>Balance: {formatCurrency(u.balance)} · Won: {formatCurrency(u.total_won)}</p>
+                    {u.referral_bonus_pct > 0 && u.referral_bonus_expires && new Date(u.referral_bonus_expires) > new Date() && (
+                      <p style={{ color: '#f0a500', fontSize: '11px' }}>🎁 Referral bonus: {u.referral_bonus_pct}% (expires {new Date(u.referral_bonus_expires).toLocaleDateString('en-GB')})</p>
+                    )}
                   </div>
                   {u.is_flagged && <span style={{ color: '#e8187a', fontSize: '12px', fontWeight: 700 }}>⚠️ FLAGGED</span>}
                 </div>
@@ -399,7 +481,6 @@ export default function AdminPage() {
           <div style={cardStyle}>
             <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '16px', fontFamily: 'Poppins, sans-serif' }}>Settings</h3>
             <form onSubmit={saveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Announcement */}
               <div style={{ borderBottom: '1px solid rgba(155,32,216,0.2)', paddingBottom: '16px', marginBottom: '4px' }}>
                 <label style={{ color: '#f0a500', fontSize: '13px', marginBottom: '6px', display: 'block', fontWeight: 700 }}>📢 Pinned Announcement</label>
                 <textarea
@@ -425,7 +506,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Payment Numbers */}
               <p style={{ color: '#aaa', fontSize: '13px', fontWeight: 700, margin: '4px 0 8px' }}>💳 Payment Numbers</p>
               {[
                 { label: '📱 bKash Number', key: 'bkash_number', placeholder: '01XXXXXXXXX' },
