@@ -4,7 +4,7 @@ import { useAuth } from '../lib/auth'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { Draw, Ad } from '../types'
-import { formatCurrency, formatJackpot, getTimeLeft } from '../lib/utils'
+import { formatCurrency, formatJackpot, formatDrawRef, formatDateTime } from '../lib/utils'
 
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
@@ -35,6 +35,7 @@ export default function HomePage() {
   const [ads, setAds] = useState<Ad[]>([])
   const [adIndex, setAdIndex] = useState(0)
   const [slideIdx, setSlideIdx] = useState(0)
+  const [pendingCount, setPendingCount] = useState(0)
   const adTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const touchStartX = useRef(0)
 
@@ -48,6 +49,13 @@ export default function HomePage() {
     fetch(`${BASE}/api/ads`).then(r => r.json()).then(d => {
       setAds(d.ads || [])
     }).catch(() => {})
+
+    fetch(`${BASE}/api/deposits`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => {
+        const pending = (d.deposits || []).filter((dep: any) => dep.status === 'pending')
+        setPendingCount(pending.length)
+      }).catch(() => {})
   }, [token])
 
   useEffect(() => {
@@ -181,18 +189,30 @@ export default function HomePage() {
             <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#22d3ee', letterSpacing: '0.5px' }}>VIEW ALL →</p>
           </div>
 
-          <div onClick={() => navigate('/winner')} style={{
+          <div onClick={() => navigate('/wallet')} style={{
             flex: 1, background: '#13112e',
             borderRadius: '16px', border: '1px solid rgba(240,165,0,0.25)',
-            padding: '18px 16px', cursor: 'pointer',
+            padding: '18px 16px', cursor: 'pointer', position: 'relative',
           }}>
+            {pendingCount > 0 && (
+              <div style={{
+                position: 'absolute', top: '10px', right: '10px',
+                width: '20px', height: '20px', borderRadius: '50%',
+                background: '#e8187a', color: '#fff',
+                fontSize: '11px', fontWeight: 800, fontFamily: 'Poppins, sans-serif',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{pendingCount}</div>
+            )}
             <svg width="38" height="38" viewBox="0 0 40 40" fill="none" style={{ marginBottom: '14px' }}>
-              <circle cx="20" cy="16" r="8" stroke="#f0a500" strokeWidth="2.5" fill="rgba(240,165,0,0.1)"/>
-              <path d="M12 32 C12 27 28 27 28 32" stroke="#f0a500" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              <path d="M16 10 L18 14 L22 14 L19 17 L20 21 L16 18.5 L12 21 L13 17 L10 14 L14 14 Z" fill="#f0a500" opacity="0.7"/>
+              <rect x="6" y="10" width="28" height="22" rx="4" stroke="#f0a500" strokeWidth="2.2" fill="rgba(240,165,0,0.08)"/>
+              <path d="M6 17H34" stroke="#f0a500" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="20" cy="26" r="3.5" fill="rgba(240,165,0,0.3)" stroke="#f0a500" strokeWidth="1.8"/>
+              <path d="M14 6 L20 10 L26 6" stroke="#f0a500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
             </svg>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#fff', letterSpacing: '0.5px', marginBottom: '6px' }}>WINNERS</p>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#f0a500', letterSpacing: '0.5px' }}>VIEW →</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: '#fff', letterSpacing: '0.5px', marginBottom: '6px' }}>PENDING</p>
+            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#f0a500', letterSpacing: '0.5px' }}>
+              {pendingCount > 0 ? `${pendingCount} WAITING →` : 'CHECK →'}
+            </p>
           </div>
         </div>
 
@@ -359,22 +379,23 @@ export default function HomePage() {
                       <span style={{ position: 'absolute', bottom: '16px', right: '18px', color: draw?.background_type === 'custom' ? '#ff4040' : '#9b20d8', fontSize: '8px', opacity: 0.9 }}>✦</span>
                       <span style={{ position: 'absolute', bottom: '38px', left: '20px', color: draw?.background_type === 'custom' ? '#ff9030' : '#e8187a', fontSize: '7px', opacity: 0.6 }}>✦</span>
 
-                      {/* Multi-draw count badge */}
-                      {liveDraws.length > 1 && (
-                        <div style={{
-                          position: 'absolute', top: '10px', left: '10px',
-                          background: 'rgba(0,0,0,0.5)', borderRadius: '8px', padding: '3px 8px',
-                          fontSize: '11px', color: '#ccc', fontFamily: 'Poppins, sans-serif', fontWeight: 600,
-                        }}>{idx + 1}/{liveDraws.length}</div>
-                      )}
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', marginTop: liveDraws.length > 1 ? '18px' : '0' }}>
-                        <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '16px', color: '#fff', letterSpacing: '1px' }}>
-                          {draw ? draw.name.toUpperCase() : 'LUCKY DRAW'}
-                        </span>
-                        <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '13px', color: draw?.background_type === 'custom' ? '#ff9030' : '#e8187a' }}>
-                          {draw ? getTimeLeft(draw.end_date).toUpperCase() : 'COMING SOON'}
-                        </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div>
+                          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '16px', color: '#fff', letterSpacing: '1px', display: 'block' }}>
+                            {draw ? draw.name.toUpperCase() : 'LUCKY DRAW'}
+                          </span>
+                          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '11px', color: draw?.background_type === 'custom' ? 'rgba(255,144,48,0.7)' : 'rgba(155,32,216,0.9)', letterSpacing: '1.5px', marginTop: '2px', display: 'block' }}>
+                            {draw ? formatDrawRef(draw.id) : 'DR-ID ——'}
+                          </span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: draw?.background_type === 'custom' ? '#ff9030' : '#e8187a', display: 'block' }}>
+                            {draw ? 'ENDS' : 'COMING SOON'}
+                          </span>
+                          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '11px', color: '#ccc', display: 'block', marginTop: '2px' }}>
+                            {draw ? formatDateTime(draw.end_date) : ''}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Orbital ring + jackpot */}

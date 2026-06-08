@@ -9,6 +9,32 @@ export function generateTicketRef(): string {
   return ref
 }
 
+export function generateDrawRef(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'
+  const len = Math.floor(Math.random() * 4) + 5
+  let ref = ''
+  for (let i = 0; i < len; i++) {
+    ref += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return `DR-ID ${ref}`
+}
+
+export function formatDrawRef(id: string): string {
+  const clean = id.replace(/-/g, '').toUpperCase().slice(0, 7)
+  return `DR-ID ${clean}`
+}
+
+export function formatDateTime(date: string): string {
+  return new Date(date).toLocaleString('en-BD', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
 export function formatCurrency(amount: number | string): string {
   return `৳${Number(amount).toLocaleString('en-BD')}`
 }
