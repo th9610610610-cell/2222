@@ -14,8 +14,8 @@ function formatTicketId(ref: string) { return `TKT-${ref}` }
 
 function formatDrawRef(draw?: Ticket['draw']) {
   if (!draw) return 'N/A'
-  if (draw.draw_number) return `#${draw.draw_number}`
-  return draw.id.slice(0, 6).toUpperCase()
+  if (draw.draw_number) return `DR-ID ${draw.draw_number}`
+  return `DR-ID ${draw.id.slice(0, 7).toUpperCase()}`
 }
 
 function fmtDate(dateStr: string) {
@@ -54,7 +54,8 @@ function TicketModal({ ticket: initialTicket, userName, token, onClose }: { tick
     `DRAW:${ticket.draw?.name || 'N/A'}`,
     `USER:${userName.toUpperCase()}`,
     `STATUS:${ticket.draw?.status?.toUpperCase() || 'N/A'}`,
-    `ENDS:${ticket.draw?.end_date ? fmtDate(ticket.draw.end_date) : 'N/A'}`,
+    `PURCHASED:${ticket.created_at ? fmtDate(ticket.created_at) : 'N/A'}`,
+    `DRAW_ID:${formatDrawRef(ticket.draw)}`,
     ticket.is_winner ? 'WINNER:YES' : 'WINNER:NO',
   ].join('|')
 
@@ -79,26 +80,31 @@ function TicketModal({ ticket: initialTicket, userName, token, onClose }: { tick
             <QRCode value={qrData} size={110} level="M" />
           </div>
           <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'11px', paddingTop:'4px' }}>
+            {/* Ticket ID */}
             <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
               <span style={{ fontSize:'15px', width:'20px' }}>🎫</span>
               <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>ID:</span>
               <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right', letterSpacing:'1px' }}>{formatTicketId(ticket.ticket_ref)}</span>
             </div>
+            {/* Draw ID */}
             <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
               <span style={{ fontSize:'15px', width:'20px' }}>🏷️</span>
               <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>DR:</span>
-              <span style={{ color:'#dc2626', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right' }}>{formatDrawRef(ticket.draw)}</span>
+              <span style={{ color:'#dc2626', fontSize:'12px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right', letterSpacing:'0.5px' }}>{formatDrawRef(ticket.draw)}</span>
             </div>
+            {/* Purchase Date */}
             <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
               <span style={{ fontSize:'15px', width:'20px' }}>📅</span>
               <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>DT:</span>
-              <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto' }}>{ticket.draw?.end_date ? fmtDate(ticket.draw.end_date) : 'N/A'}</span>
+              <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto' }}>{ticket.created_at ? fmtDate(ticket.created_at) : 'N/A'}</span>
             </div>
+            {/* Purchase Time */}
             <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
               <span style={{ fontSize:'15px', width:'20px' }}>🕐</span>
               <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>TM:</span>
-              <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto' }}>{ticket.draw?.end_date ? fmtTime(ticket.draw.end_date) : 'N/A'}</span>
+              <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto' }}>{ticket.created_at ? fmtTime(ticket.created_at) : 'N/A'}</span>
             </div>
+            {/* Draw Status */}
             <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
               <span style={{ fontSize:'15px', width:'20px' }}>📊</span>
               <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>ST:</span>

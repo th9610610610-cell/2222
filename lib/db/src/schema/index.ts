@@ -86,6 +86,18 @@ export const settingsTable = pgTable('settings', {
   announcement: text('announcement').notNull().default(''),
 })
 
+export const businessCodesTable = pgTable('business_codes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: text('code').notNull().unique(),
+  discount_pct: integer('discount_pct').notNull().default(50),
+  usage_limit: integer('usage_limit').notNull().default(100),
+  usage_count: integer('usage_count').notNull().default(0),
+  expires_at: timestamp('expires_at'),
+  is_active: boolean('is_active').notNull().default(true),
+  description: text('description').notNull().default(''),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+})
+
 export const adsTable = pgTable('ads', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: adTypeEnum('type').notNull().default('text'),

@@ -15,6 +15,7 @@ export default function DepositPage() {
   const [form, setForm] = useState({ amount: '', method: 'bkash' as 'bkash' | 'nagad' | 'rocket', sender_phone: '', trx_id: '' })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [btnResult, setBtnResult] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     if (!token) { navigate('/login'); return }
@@ -33,8 +34,15 @@ export default function DepositPage() {
     })
     const data = await res.json()
     setLoading(false)
-    if (!res.ok) { setMsg({ type: 'err', text: data.error || 'Submission failed' }); return }
+    if (!res.ok) {
+      setMsg({ type: 'err', text: data.error || 'Submission failed' })
+      setBtnResult({ ok: false, text: '❌ Failed' })
+      setTimeout(() => setBtnResult(null), 3000)
+      return
+    }
     setMsg({ type: 'ok', text: '✅ Deposit submitted! Awaiting admin approval.' })
+    setBtnResult({ ok: true, text: '✅ Submitted!' })
+    setTimeout(() => setBtnResult(null), 3000)
     setForm(f => ({ ...f, amount: '', sender_phone: '', trx_id: '' }))
   }
 
@@ -91,12 +99,22 @@ export default function DepositPage() {
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Transaction ID</label>
               <input type="text" value={form.trx_id} onChange={e => inp('trx_id', e.target.value.toUpperCase())} placeholder="e.g. ABC1234567" required style={inputStyle} />
             </div>
-            <button type="submit" disabled={loading} style={{
-              width: '100%', padding: '14px', borderRadius: '12px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-              background: 'linear-gradient(90deg, #e8187a, #9b20d8)', color: '#fff',
-              fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700, opacity: loading ? 0.7 : 1,
-            }}>
-              {loading ? 'Submitting...' : 'Submit Deposit Request'}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                background: btnResult
+                  ? (btnResult.ok ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #e8187a, #c01460)')
+                  : 'linear-gradient(90deg, #e8187a, #9b20d8)',
+                color: '#fff',
+                fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700,
+                opacity: loading ? 0.7 : 1,
+                transition: 'background 0.3s',
+              }}
+            >
+              {loading ? 'Submitting...' : btnResult ? btnResult.text : 'Submit Deposit Request'}
             </button>
           </form>
         </div>

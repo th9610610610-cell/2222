@@ -6,7 +6,19 @@ import { formatCurrency, formatDate, formatJackpot } from '../lib/utils'
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
-type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads'
+type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads' | 'partners'
+
+interface BusinessCode {
+  id: string
+  code: string
+  discount_pct: number
+  usage_limit: number
+  usage_count: number
+  expires_at: string | null
+  is_active: boolean
+  description: string
+  created_at: string
+}
 
 const REJECT_REASONS = [
   'Invalid Transaction Id',
@@ -23,7 +35,9 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '' })
   const [ads, setAds] = useState<Ad[]>([])
+  const [businessCodes, setBusinessCodes] = useState<BusinessCode[]>([])
   const [newAd, setNewAd] = useState({ type: 'text', title: '', content: '', link_url: '' })
+  const [newCode, setNewCode] = useState({ code: '', discount_pct: '50', usage_limit: '100', expires_at: '', description: '' })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [newDraw, setNewDraw] = useState({
@@ -34,6 +48,8 @@ export default function AdminPage() {
   const [rejectModal, setRejectModal] = useState<{ depositId: string } | null>(null)
   const [rescheduleModal, setRescheduleModal] = useState<{ drawId: string; drawName: string } | null>(null)
   const [newEndDate, setNewEndDate] = useState('')
+  const [depositBtnResult, setDepositBtnResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
+  const [createDrawResult, setCreateDrawResult] = useState<{ ok: boolean; text: string } | null>(null)
 
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
@@ -45,18 +61,20 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [d, dr, u, s, a] = await Promise.all([
+      const [d, dr, u, s, a, bc] = await Promise.all([
         fetch(`${BASE}/api/admin/deposits`, { headers }).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/draws`).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/admin/users`, { headers }).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/settings`).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/ads/all`, { headers }).then(r => r.json()).catch(() => ({})),
+        fetch(`${BASE}/api/business-codes`, { headers }).then(r => r.json()).catch(() => ({})),
       ])
       setDeposits(d.deposits || [])
       setDraws(dr.draws || [])
       setUsers(u.users || [])
       if (s.settings) setSettings(s.settings)
       setAds(a.ads || [])
+      setBusinessCodes(bc.codes || [])
     } catch (e) {
       console.error('loadAll failed', e)
     } finally {
@@ -78,7 +96,11 @@ export default function AdminPage() {
       method: 'PATCH', headers,
       body: JSON.stringify({ action, rejection_reason: reason }),
     })
-    if (res.ok) { setMsg(`Deposit ${action}d`); loadAll() }
+    const ok = res.ok
+    const resultText = action === 'approve' ? (ok ? '✅ Approved!' : '❌ Failed') : (ok ? '✅ Rejected' : '❌ Failed')
+    setDepositBtnResult(r => ({ ...r, [id]: { ok, text: resultText } }))
+    setTimeout(() => setDepositBtnResult(r => ({ ...r, [id]: null })), 3000)
+    if (ok) { setMsg(`Deposit ${action}d`); loadAll() }
     setRejectModal(null)
   }
 
@@ -107,9 +129,14 @@ export default function AdminPage() {
       }),
     })
     if (res.ok) {
+      setCreateDrawResult({ ok: true, text: '✅ Draw Created!' })
+      setTimeout(() => setCreateDrawResult(null), 3000)
       setMsg('Draw created')
       setNewDraw({ name: '', jackpot: '', ticket_price: '', max_tickets: '', end_date: '', background_type: 'natural', background_image_url: '' })
       loadAll()
+    } else {
+      setCreateDrawResult({ ok: false, text: '❌ Failed' })
+      setTimeout(() => setCreateDrawResult(null), 3000)
     }
   }
 
@@ -139,6 +166,39 @@ export default function AdminPage() {
     e.preventDefault()
     const res = await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
     if (res.ok) setMsg('Settings saved')
+  }
+
+  const createBusinessCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const res = await fetch(`${BASE}/api/business-codes`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        code: newCode.code.trim().toUpperCase(),
+        discount_pct: Number(newCode.discount_pct),
+        usage_limit: Number(newCode.usage_limit),
+        expires_at: newCode.expires_at || undefined,
+        description: newCode.description,
+      }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setMsg('✅ Partner code created!')
+      setNewCode({ code: '', discount_pct: '50', usage_limit: '100', expires_at: '', description: '' })
+      loadAll()
+    } else {
+      setMsg(`❌ ${data.error || 'Failed to create code'}`)
+    }
+  }
+
+  const toggleCodeActive = async (id: string, is_active: boolean) => {
+    await fetch(`${BASE}/api/business-codes/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ is_active }) })
+    loadAll()
+  }
+
+  const deleteCode = async (id: string) => {
+    if (!confirm('Delete this partner code?')) return
+    await fetch(`${BASE}/api/business-codes/${id}`, { method: 'DELETE', headers })
+    loadAll()
   }
 
   const tabStyle = (t: Tab): React.CSSProperties => ({
@@ -211,9 +271,14 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '20px' }}>
-          {(['deposits', 'draws', 'users', 'settings', 'ads'] as Tab[]).map(t => (
+          {(['deposits', 'draws', 'users', 'partners', 'settings', 'ads'] as Tab[]).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ ...tabStyle(t), flexShrink: 0 }}>
-              {t === 'deposits' ? '💰 Deposits' : t === 'draws' ? '🏆 Draws' : t === 'users' ? '👥 Users' : t === 'settings' ? '⚙️ Settings' : '📢 Ads'}
+              {t === 'deposits' ? '💰 Deposits'
+                : t === 'draws' ? '🏆 Draws'
+                : t === 'users' ? '👥 Users'
+                : t === 'partners' ? '🏢 Partners'
+                : t === 'settings' ? '⚙️ Settings'
+                : '📢 Ads'}
             </button>
           ))}
         </div>
@@ -242,8 +307,32 @@ export default function AdminPage() {
                 </div>
                 {dep.status === 'pending' && (
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => processDeposit(dep.id, 'approve')} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(80,200,80,0.2)', color: '#4f4', fontWeight: 700, fontSize: '13px' }}>✅ Approve</button>
-                    <button onClick={() => setRejectModal({ depositId: dep.id })} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.2)', color: '#e8187a', fontWeight: 700, fontSize: '13px' }}>❌ Reject</button>
+                    <button
+                      onClick={() => processDeposit(dep.id, 'approve')}
+                      style={{
+                        flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                        background: depositBtnResult[dep.id]?.ok === true
+                          ? 'rgba(80,200,80,0.4)'
+                          : 'rgba(80,200,80,0.2)',
+                        color: '#4f4', fontWeight: 700, fontSize: '13px',
+                        transition: 'background 0.3s',
+                      }}
+                    >
+                      {depositBtnResult[dep.id] && depositBtnResult[dep.id]!.ok ? depositBtnResult[dep.id]!.text : '✅ Approve'}
+                    </button>
+                    <button
+                      onClick={() => setRejectModal({ depositId: dep.id })}
+                      style={{
+                        flex: 1, padding: '9px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                        background: depositBtnResult[dep.id]?.ok === false
+                          ? 'rgba(232,24,122,0.4)'
+                          : 'rgba(232,24,122,0.2)',
+                        color: '#e8187a', fontWeight: 700, fontSize: '13px',
+                        transition: 'background 0.3s',
+                      }}
+                    >
+                      {depositBtnResult[dep.id] && !depositBtnResult[dep.id]!.ok ? depositBtnResult[dep.id]!.text : '❌ Reject'}
+                    </button>
                   </div>
                 )}
               </div>
@@ -273,7 +362,6 @@ export default function AdminPage() {
                   <input type="datetime-local" value={newDraw.end_date} onChange={e => setNewDraw(f => ({ ...f, end_date: e.target.value }))} required style={inputStyle} />
                 </div>
 
-                {/* Background Type Selection */}
                 <div>
                   <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '6px', display: 'block' }}>🎨 Card Background</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -305,7 +393,6 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Picture URL input (only for picture type) */}
                 {newDraw.background_type === 'picture' && (
                   <div>
                     <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>🔗 Background Image URL</label>
@@ -316,11 +403,9 @@ export default function AdminPage() {
                       placeholder="https://example.com/image.jpg"
                       style={inputStyle}
                     />
-                    <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>A dark overlay will be applied automatically over the image.</p>
                   </div>
                 )}
 
-                {/* Preview of selected background */}
                 <div style={{
                   height: '60px', borderRadius: '10px', overflow: 'hidden',
                   background: newDraw.background_type === 'custom'
@@ -334,7 +419,19 @@ export default function AdminPage() {
                   Preview background
                 </div>
 
-                <button type="submit" style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>Create Draw</button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                    background: createDrawResult
+                      ? (createDrawResult.ok ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #e8187a, #c01460)')
+                      : 'linear-gradient(90deg, #f0a500, #e8187a)',
+                    color: '#fff', fontWeight: 700,
+                    transition: 'background 0.3s',
+                  }}
+                >
+                  {createDrawResult ? createDrawResult.text : 'Create Draw'}
+                </button>
               </form>
             </div>
             {draws.map(draw => (
@@ -393,6 +490,95 @@ export default function AdminPage() {
                   {!u.is_flagged && <button onClick={() => updateUser(u.id, { is_flagged: true })} style={{ padding: '6px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.2)', color: '#e8187a', fontSize: '12px', fontWeight: 600 }}>Flag</button>}
                   {u.role === 'user' && <button onClick={() => updateUser(u.id, { role: 'moderator' })} style={{ padding: '6px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(155,32,216,0.2)', color: '#9b20d8', fontSize: '12px', fontWeight: 600 }}>→ Mod</button>}
                   {u.role === 'moderator' && <button onClick={() => updateUser(u.id, { role: 'user' })} style={{ padding: '6px 10px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(155,32,216,0.1)', color: '#8888aa', fontSize: '12px', fontWeight: 600 }}>→ User</button>}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* PARTNERS TAB */}
+        {tab === 'partners' && !loading && (
+          <>
+            {/* Create Business Partner Code */}
+            <div style={cardStyle}>
+              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>🏢 Create Partner Code</h3>
+              <form onSubmit={createBusinessCode} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Code (e.g. PROMO2025)</label>
+                  <input
+                    type="text"
+                    value={newCode.code}
+                    onChange={e => setNewCode(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                    placeholder="PROMO2025"
+                    required
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Discount %</label>
+                    <input type="number" value={newCode.discount_pct} onChange={e => setNewCode(f => ({ ...f, discount_pct: e.target.value }))} min={1} max={90} required style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Usage Limit</label>
+                    <input type="number" value={newCode.usage_limit} onChange={e => setNewCode(f => ({ ...f, usage_limit: e.target.value }))} min={1} required style={inputStyle} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Expires At (optional)</label>
+                  <input type="datetime-local" value={newCode.expires_at} onChange={e => setNewCode(f => ({ ...f, expires_at: e.target.value }))} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Description (optional)</label>
+                  <input type="text" value={newCode.description} onChange={e => setNewCode(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Facebook promo" style={inputStyle} />
+                </div>
+                <button type="submit" style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>
+                  + Create Code
+                </button>
+              </form>
+            </div>
+
+            {/* Code List */}
+            <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '12px', fontFamily: 'Poppins, sans-serif' }}>
+              Active Codes ({businessCodes.filter(c => c.is_active).length}/{businessCodes.length})
+            </h3>
+            {businessCodes.length === 0 ? (
+              <p style={{ color: '#8888aa', textAlign: 'center', padding: '24px' }}>No partner codes yet.</p>
+            ) : businessCodes.map(bc => (
+              <div key={bc.id} style={{ ...cardStyle, opacity: bc.is_active ? 1 : 0.55, border: `1px solid ${bc.is_active ? 'rgba(240,165,0,0.3)' : 'rgba(155,32,216,0.15)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <p style={{ color: '#f0a500', fontWeight: 800, fontSize: '16px', fontFamily: 'monospace', letterSpacing: '2px' }}>{bc.code}</p>
+                    {bc.description && <p style={{ color: '#8888aa', fontSize: '12px' }}>{bc.description}</p>}
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ color: '#e8187a', fontWeight: 700, fontSize: '16px' }}>{bc.discount_pct}% off</p>
+                    <p style={{ color: '#8888aa', fontSize: '11px' }}>{bc.usage_count}/{bc.usage_limit} used</p>
+                  </div>
+                </div>
+                {bc.expires_at && (
+                  <p style={{ color: new Date(bc.expires_at) < new Date() ? '#f88' : '#8888aa', fontSize: '11px', marginBottom: '8px' }}>
+                    Expires: {new Date(bc.expires_at).toLocaleDateString('en-GB')}
+                    {new Date(bc.expires_at) < new Date() && ' ⚠️ EXPIRED'}
+                  </p>
+                )}
+                {/* Progress bar */}
+                <div style={{ background: 'rgba(155,32,216,0.2)', borderRadius: '4px', height: '4px', marginBottom: '10px' }}>
+                  <div style={{ width: `${Math.min(100, (bc.usage_count / bc.usage_limit) * 100)}%`, background: '#e8187a', borderRadius: '4px', height: '100%' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => toggleCodeActive(bc.id, !bc.is_active)}
+                    style={{ flex: 1, padding: '7px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: bc.is_active ? 'rgba(136,136,170,0.2)' : 'rgba(80,200,80,0.2)', color: bc.is_active ? '#aaa' : '#4f4', fontWeight: 600, fontSize: '12px' }}
+                  >
+                    {bc.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button
+                    onClick={() => deleteCode(bc.id)}
+                    style={{ padding: '7px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontWeight: 600, fontSize: '12px' }}
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
             ))}

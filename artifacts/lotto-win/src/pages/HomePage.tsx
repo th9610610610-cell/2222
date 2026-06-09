@@ -36,6 +36,10 @@ export default function HomePage() {
   const [adIndex, setAdIndex] = useState(0)
   const [slideIdx, setSlideIdx] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
+  const [pendingModal, setPendingModal] = useState(false)
+  const [pendingDeposits, setPendingDeposits] = useState<any[]>([])
+  const [activeTickets, setActiveTickets] = useState<any[]>([])
+  const [pendingModalLoading, setPendingModalLoading] = useState(false)
   const adTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const touchStartX = useRef(0)
 
@@ -55,8 +59,23 @@ export default function HomePage() {
       .then(d => {
         const pending = (d.deposits || []).filter((dep: any) => dep.status === 'pending')
         setPendingCount(pending.length)
+        setPendingDeposits(pending)
       }).catch(() => {})
   }, [token])
+
+  const openPendingModal = async () => {
+    setPendingModal(true)
+    setPendingModalLoading(true)
+    try {
+      const [depRes, tickRes] = await Promise.all([
+        fetch(`${BASE}/api/deposits`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+        fetch(`${BASE}/api/tickets`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      ])
+      setPendingDeposits((depRes.deposits || []).filter((d: any) => d.status === 'pending'))
+      setActiveTickets((tickRes.tickets || []).filter((t: any) => t.draw?.status === 'live' || t.draw?.status === 'upcoming'))
+    } catch {}
+    setPendingModalLoading(false)
+  }
 
   useEffect(() => {
     if (ads.length <= 1) return
@@ -189,7 +208,7 @@ export default function HomePage() {
             <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '11px', color: '#22d3ee', letterSpacing: '0.5px' }}>VIEW ALL →</p>
           </div>
 
-          <div onClick={() => navigate('/wallet')} style={{
+          <div onClick={openPendingModal} style={{
             flex: 1, background: '#13112e',
             borderRadius: '16px', border: '1px solid rgba(155,32,216,0.35)',
             padding: '18px 16px', cursor: 'pointer', position: 'relative',
@@ -461,6 +480,75 @@ export default function HomePage() {
         )}
       </div>
       <BottomNav />
+
+      {/* Pending Modal */}
+      {pendingModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setPendingModal(false)}>
+          <div style={{ background: '#100f28', borderRadius: '24px 24px 0 0', border: '1px solid rgba(155,32,216,0.3)', width: '100%', maxWidth: '500px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding: '20px 20px 14px', borderBottom: '1px solid rgba(155,32,216,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ color: '#fff', fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '18px', margin: 0 }}>⏳ Pending Items</h3>
+                <p style={{ color: '#8888aa', fontSize: '12px', marginTop: '4px', fontFamily: 'Poppins, sans-serif' }}>
+                  {pendingDeposits.length} deposit{pendingDeposits.length !== 1 ? 's' : ''} · {activeTickets.length} active ticket{activeTickets.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button onClick={() => setPendingModal(false)} style={{ background: 'rgba(155,32,216,0.15)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#fff', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+
+            {/* Content */}
+            <div style={{ overflowY: 'auto', padding: '16px 20px 30px', flex: 1 }}>
+              {pendingModalLoading ? (
+                <p style={{ color: '#8888aa', textAlign: 'center', padding: '30px 0', fontFamily: 'Poppins, sans-serif' }}>Loading...</p>
+              ) : (
+                <>
+                  {/* Pending Deposits */}
+                  <p style={{ color: '#f0a500', fontWeight: 700, fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    💰 Pending Deposits ({pendingDeposits.length})
+                  </p>
+                  {pendingDeposits.length === 0 ? (
+                    <div style={{ background: 'rgba(80,200,80,0.08)', border: '1px solid rgba(80,200,80,0.2)', borderRadius: '10px', padding: '12px 14px', marginBottom: '20px' }}>
+                      <p style={{ color: '#4f4', fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}>✅ No pending deposits</p>
+                    </div>
+                  ) : pendingDeposits.map((dep: any) => (
+                    <div key={dep.id} style={{ background: 'rgba(240,165,0,0.08)', border: '1px solid rgba(240,165,0,0.3)', borderRadius: '12px', padding: '12px 14px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px', fontFamily: 'Poppins, sans-serif' }}>+{formatCurrency(dep.amount)}</p>
+                        <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>{dep.method?.toUpperCase()} · TRX: {dep.trx_id}</p>
+                      </div>
+                      <span style={{ background: 'rgba(240,165,0,0.2)', color: '#f0a500', borderRadius: '20px', padding: '4px 12px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>PENDING</span>
+                    </div>
+                  ))}
+
+                  {/* Active Tickets */}
+                  <p style={{ color: '#9b20d8', fontWeight: 700, fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '10px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    🎫 Active Tickets ({activeTickets.length})
+                  </p>
+                  {activeTickets.length === 0 ? (
+                    <div style={{ background: 'rgba(155,32,216,0.08)', border: '1px solid rgba(155,32,216,0.2)', borderRadius: '10px', padding: '12px 14px' }}>
+                      <p style={{ color: '#9b20d8', fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}>No active tickets yet</p>
+                    </div>
+                  ) : activeTickets.map((t: any) => (
+                    <div key={t.id} style={{ background: 'rgba(155,32,216,0.08)', border: '1px solid rgba(155,32,216,0.2)', borderRadius: '12px', padding: '12px 14px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ color: '#f0a500', fontWeight: 700, fontSize: '14px', fontFamily: 'monospace', letterSpacing: '2px' }}>TKT-{t.ticket_ref}</p>
+                        <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>{t.draw?.name}</p>
+                      </div>
+                      <span style={{ background: t.draw?.status === 'live' ? 'rgba(232,24,122,0.2)' : 'rgba(155,32,216,0.2)', color: t.draw?.status === 'live' ? '#e8187a' : '#9b20d8', borderRadius: '20px', padding: '4px 12px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>
+                        {(t.draw?.status || 'N/A').toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+
+                  <button onClick={() => { setPendingModal(false); navigate('/wallet') }} style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', cursor: 'pointer', background: 'rgba(155,32,216,0.15)', color: '#9b20d8', fontWeight: 700, fontSize: '14px', fontFamily: 'Poppins, sans-serif', marginTop: '6px' }}>
+                    View Full History →
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

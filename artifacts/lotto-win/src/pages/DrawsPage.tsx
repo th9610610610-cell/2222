@@ -18,7 +18,9 @@ export default function DrawsPage() {
   const [buying, setBuying] = useState<string | null>(null)
   const [qty, setQty] = useState<Record<string, number>>({})
   const [referralPhone, setReferralPhone] = useState<Record<string, string>>({})
+  const [businessCode, setBusinessCode] = useState<Record<string, string>>({})
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [btnResult, setBtnResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
 
   const hasActiveBonus = user?.referral_bonus_pct > 0 &&
     user?.referral_bonus_expires != null &&
@@ -39,20 +41,32 @@ export default function DrawsPage() {
   const buyTicket = async (draw: Draw) => {
     const quantity = qty[draw.id] || 1
     const phone = referralPhone[draw.id]?.trim() || ''
+    const bcode = businessCode[draw.id]?.trim() || ''
     setBuying(draw.id)
     setMsg(null)
     const res = await fetch(`${BASE}/api/tickets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ draw_id: draw.id, quantity, referral_phone: phone || undefined }),
+      body: JSON.stringify({
+        draw_id: draw.id,
+        quantity,
+        referral_phone: phone || undefined,
+        business_code: bcode || undefined,
+      }),
     })
     const data = await res.json()
     setBuying(null)
-    if (!res.ok) { setMsg({ type: 'err', text: data.error || 'Purchase failed' }); return }
-    const discountNote = data.discount_applied > 0 ? ` (${data.discount_applied}% discount applied!)` : ''
-    setMsg({ type: 'ok', text: `🎉 ${quantity} ticket(s) purchased! Total: ${formatCurrency(data.total_cost)}${discountNote}` })
-    // Clear referral input after use
+    if (!res.ok) {
+      setBtnResult(r => ({ ...r, [draw.id]: { ok: false, text: '❌ ' + (data.error || 'Failed') } }))
+      setTimeout(() => setBtnResult(r => ({ ...r, [draw.id]: null })), 3000)
+      return
+    }
+    const discountNote = data.discount_applied > 0 ? ` (${data.discount_applied}% off)` : ''
+    setBtnResult(r => ({ ...r, [draw.id]: { ok: true, text: `✅ Bought!${discountNote}` } }))
+    setTimeout(() => setBtnResult(r => ({ ...r, [draw.id]: null })), 3000)
+    setMsg({ type: 'ok', text: `🎉 ${quantity} ticket(s) purchased! Total: ${formatCurrency(data.total_cost)}${data.discount_applied > 0 ? ` (${data.discount_applied}% discount applied!)` : ''}` })
     setReferralPhone(prev => ({ ...prev, [draw.id]: '' }))
+    setBusinessCode(prev => ({ ...prev, [draw.id]: '' }))
     load()
     refresh()
   }
@@ -159,22 +173,54 @@ export default function DrawsPage() {
                     <span style={{ color: '#fff', padding: '0 8px', fontSize: '15px', fontWeight: 600 }}>{qty[draw.id] || 1}</span>
                     <button onClick={() => setQty(q => ({ ...q, [draw.id]: Math.min(20, (q[draw.id] || 1) + 1) }))} style={{ padding: '10px 14px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}>+</button>
                   </div>
-                  <button onClick={() => buyTicket(draw)} disabled={buying === draw.id} style={{
-                    flex: 1, padding: '12px', borderRadius: '10px', border: 'none', cursor: buying === draw.id ? 'not-allowed' : 'pointer',
-                    background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff',
-                    fontWeight: 700, fontSize: '14px', opacity: buying === draw.id ? 0.7 : 1,
-                  }}>
-                    {buying === draw.id ? 'Buying...' : `Buy · ${formatCurrency(
-                      hasActiveBonus
-                        ? Math.ceil(draw.ticket_price * 0.5) * (qty[draw.id] || 1)
-                        : draw.ticket_price * (qty[draw.id] || 1)
-                    )}`}
+                  <button
+                    onClick={() => !btnResult[draw.id] && buyTicket(draw)}
+                    disabled={buying === draw.id}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
+                      cursor: buying === draw.id ? 'not-allowed' : 'pointer',
+                      background: btnResult[draw.id]
+                        ? (btnResult[draw.id]!.ok ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #e8187a, #c01460)')
+                        : 'linear-gradient(90deg, #f0a500, #e8187a)',
+                      color: '#fff', fontWeight: 700, fontSize: '14px',
+                      opacity: buying === draw.id ? 0.7 : 1,
+                      transition: 'background 0.3s',
+                    }}
+                  >
+                    {buying === draw.id
+                      ? 'Buying...'
+                      : btnResult[draw.id]
+                        ? btnResult[draw.id]!.text
+                        : `Buy · ${formatCurrency(
+                            hasActiveBonus
+                              ? Math.ceil(draw.ticket_price * 0.5) * (qty[draw.id] || 1)
+                              : draw.ticket_price * (qty[draw.id] || 1)
+                          )}`
+                    }
                   </button>
                 </div>
 
-                {/* Referral Code Input (only if no active bonus) */}
+                {/* Promo codes row (only if no active bonus) */}
                 {!hasActiveBonus && (
-                  <div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Business Partner Code */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(240,165,0,0.2)' }}>
+                      <span style={{ fontSize: '16px', flexShrink: 0 }}>🏢</span>
+                      <input
+                        type="text"
+                        value={businessCode[draw.id] || ''}
+                        onChange={e => setBusinessCode(p => ({ ...p, [draw.id]: e.target.value.toUpperCase() }))}
+                        placeholder="Partner Code (e.g. PROMO2025)"
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}
+                      />
+                    </div>
+                    {businessCode[draw.id]?.trim() && (
+                      <p style={{ color: '#f0a500', fontSize: '11px', marginTop: '-4px', fontFamily: 'Poppins, sans-serif', paddingLeft: '4px' }}>
+                        Partner code will be validated at checkout.
+                      </p>
+                    )}
+
+                    {/* Referral Phone */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(155,32,216,0.2)' }}>
                       <span style={{ fontSize: '16px', flexShrink: 0 }}>🎁</span>
                       <input
@@ -182,14 +228,11 @@ export default function DrawsPage() {
                         value={referralPhone[draw.id] || ''}
                         onChange={e => setReferralPhone(p => ({ ...p, [draw.id]: e.target.value }))}
                         placeholder="Referral phone (optional — get 50% off)"
-                        style={{
-                          flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                          color: '#fff', fontSize: '13px', fontFamily: 'Poppins, sans-serif',
-                        }}
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}
                       />
                     </div>
                     {referralPhone[draw.id]?.trim() && (
-                      <p style={{ color: '#f0a500', fontSize: '11px', marginTop: '4px', fontFamily: 'Poppins, sans-serif' }}>
+                      <p style={{ color: '#f0a500', fontSize: '11px', marginTop: '-4px', fontFamily: 'Poppins, sans-serif', paddingLeft: '4px' }}>
                         50% discount will apply — referrer also earns 50% off their next ticket!
                       </p>
                     )}

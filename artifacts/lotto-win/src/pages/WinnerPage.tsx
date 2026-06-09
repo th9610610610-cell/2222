@@ -56,11 +56,11 @@ function VintageTicket({
       <div style={{
         display: 'flex',
         background: tpl.bg,
-        borderRadius: '8px',
+        borderRadius: '6px',
         border: `2px solid ${tpl.border}`,
         overflow: 'hidden',
         position: 'relative',
-        minHeight: '70px',
+        minHeight: '56px',
       }}>
         {/* Left side numbers (for some templates) */}
         {tpl.sideNum && (
@@ -107,17 +107,17 @@ function VintageTicket({
           <div style={{ textAlign: 'center', paddingTop: (tpl as any).crown ? '12px' : '0' }}>
             <span style={{
               fontFamily: 'Arial Black, sans-serif', fontWeight: 900,
-              fontSize: '16px', color: tpl.text,
-              letterSpacing: '2px',
+              fontSize: '11px', color: tpl.text,
+              letterSpacing: '1px',
               textShadow: isWinner ? '0 0 10px rgba(255,215,0,0.8)' : 'none',
             }}>TKT-{ticket.ticket_ref}</span>
           </div>
 
           {/* Username */}
           {ticket.user_name && (
-            <div style={{ textAlign: 'center', marginTop: '2px' }}>
-              <span style={{ fontSize: '9px', color: tpl.text, opacity: 0.55, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.5px' }}>
-                {ticket.user_name.toUpperCase()}
+            <div style={{ textAlign: 'center', marginTop: '1px' }}>
+              <span style={{ fontSize: '7px', color: tpl.text, opacity: 0.55, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.3px' }}>
+                {ticket.user_name.toUpperCase().slice(0, 10)}
               </span>
             </div>
           )}
@@ -370,7 +370,7 @@ export default function WinnerPage() {
                   <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px', textAlign: 'center' }}>
                     {tickets.length} tickets · shuffled for fairness
                   </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                     {tickets.map((ticket, idx) => (
                       <VintageTicket
                         key={ticket.id}

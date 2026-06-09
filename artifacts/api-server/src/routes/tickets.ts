@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db, ticketsTable, drawsTable, usersTable, notificationsTable } from '@workspace/db'
-import { eq, desc, and } from 'drizzle-orm'
+import { businessCodesTable } from '@workspace/db/schema'
+import { eq, desc, and, count } from 'drizzle-orm'
 import { requireAuth, AuthRequest } from '../middlewares/auth'
 
 const router = Router()
@@ -41,7 +42,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 })
 
 router.post('/', requireAuth, async (req: AuthRequest, res) => {
-  const { draw_id, quantity = 1, referral_phone } = req.body
+  const { draw_id, quantity = 1, referral_phone, business_code } = req.body
   const qty = Math.max(1, Math.min(20, Number(quantity)))
 
   const [draw] = await db.select().from(drawsTable).where(eq(drawsTable.id, draw_id))
@@ -60,6 +61,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
   // Determine discount
   let discountPct = 0
   let referrer: typeof buyer | null = null
+  let businessCodeId: string | null = null
 
   const now = new Date()
   const hasActiveBonus = buyer.referral_bonus_pct > 0 &&
@@ -67,10 +69,15 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     new Date(buyer.referral_bonus_expires) > now
 
   if (hasActiveBonus) {
-    // Use existing referral bonus (earned by being a referrer previously)
     discountPct = buyer.referral_bonus_pct
+  } else if (business_code?.trim()) {
+    const code = business_code.trim().toUpperCase()
+    const [bc] = await db.select().from(businessCodesTable).where(eq(businessCodesTable.code, code))
+    if (bc && bc.is_active && bc.usage_count < bc.usage_limit && (!bc.expires_at || new Date() <= new Date(bc.expires_at))) {
+      discountPct = bc.discount_pct
+      businessCodeId = bc.id
+    }
   } else if (referral_phone && referral_phone.trim()) {
-    // New referral: look up referrer by phone
     const phone = referral_phone.trim()
     if (phone !== buyer.phone) {
       const [ref] = await db.select().from(usersTable).where(eq(usersTable.phone, phone))
@@ -108,6 +115,12 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
   }).where(eq(usersTable.id, req.user!.id))
 
   await db.update(drawsTable).set({ tickets_sold: draw.tickets_sold + qty }).where(eq(drawsTable.id, draw_id))
+
+  // Increment business code usage
+  if (businessCodeId) {
+    const [bc] = await db.select().from(businessCodesTable).where(eq(businessCodesTable.id, businessCodeId))
+    if (bc) await db.update(businessCodesTable).set({ usage_count: bc.usage_count + qty }).where(eq(businessCodesTable.id, businessCodeId))
+  }
 
   // Give referrer their bonus (7 days)
   if (referrer) {
