@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { db, ticketsTable, drawsTable, usersTable, notificationsTable } from '@workspace/db'
-import { businessCodesTable } from '@workspace/db/schema'
-import { eq, desc, and, count } from 'drizzle-orm'
+import { businessCodesTable, settingsTable } from '@workspace/db/schema'
+import { eq, desc, and } from 'drizzle-orm'
 import { requireAuth, AuthRequest } from '../middlewares/auth'
 
 const router = Router()
@@ -42,7 +42,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 })
 
 router.post('/', requireAuth, async (req: AuthRequest, res) => {
-  const { draw_id, quantity = 1, referral_phone, business_code } = req.body
+  const { draw_id, quantity = 1, coupon_code } = req.body
   const qty = Math.max(1, Math.min(20, Number(quantity)))
 
   const [draw] = await db.select().from(drawsTable).where(eq(drawsTable.id, draw_id))
@@ -60,31 +60,48 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
   // Determine discount
   let discountPct = 0
-  let referrer: typeof buyer | null = null
+  let discountType: 'referral_bonus' | 'business' | 'user_partner' | null = null
   let businessCodeId: string | null = null
+  let userPartnerReferrer: typeof buyer | null = null
+  let userPartnerReferrerRewardPct = 0
 
   const now = new Date()
+
+  // Priority 1: Active referral bonus (auto-applied)
   const hasActiveBonus = buyer.referral_bonus_pct > 0 &&
     buyer.referral_bonus_expires != null &&
     new Date(buyer.referral_bonus_expires) > now
 
   if (hasActiveBonus) {
     discountPct = buyer.referral_bonus_pct
-  } else if (business_code?.trim()) {
-    const code = business_code.trim().toUpperCase()
+    discountType = 'referral_bonus'
+  } else if (coupon_code?.trim()) {
+    const code = coupon_code.trim().toUpperCase()
+    const [settings] = await db.select().from(settingsTable)
+
+    // Priority 2: Try business code
     const [bc] = await db.select().from(businessCodesTable).where(eq(businessCodesTable.code, code))
-    if (bc && bc.is_active && bc.usage_count < bc.usage_limit && (!bc.expires_at || new Date() <= new Date(bc.expires_at))) {
+    if (bc) {
+      if (!bc.is_active) return res.status(400).json({ error: 'Coupon code is inactive' })
+      if (bc.usage_count >= bc.usage_limit) return res.status(400).json({ error: 'Coupon usage limit reached' })
+      if (bc.expires_at && new Date() > new Date(bc.expires_at)) return res.status(400).json({ error: 'Coupon code has expired' })
       discountPct = bc.discount_pct
+      discountType = 'business'
       businessCodeId = bc.id
-    }
-  } else if (referral_phone && referral_phone.trim()) {
-    const phone = referral_phone.trim()
-    if (phone !== buyer.phone) {
-      const [ref] = await db.select().from(usersTable).where(eq(usersTable.phone, phone))
-      if (ref) {
-        referrer = ref
-        discountPct = 50
+    } else if (settings?.user_partner_code_enabled) {
+      // Priority 3: Try user partner code
+      const [codeOwner] = await db.select().from(usersTable).where(eq(usersTable.partner_code, code))
+      if (codeOwner) {
+        if (codeOwner.id === buyer.id) return res.status(400).json({ error: 'You cannot use your own partner code' })
+        discountPct = settings.user_partner_buyer_discount_pct
+        userPartnerReferrerRewardPct = settings.user_partner_referrer_reward_pct
+        discountType = 'user_partner'
+        userPartnerReferrer = codeOwner
+      } else {
+        return res.status(400).json({ error: 'Invalid coupon code' })
       }
+    } else {
+      return res.status(400).json({ error: 'Invalid coupon code' })
     }
   }
 
@@ -92,8 +109,6 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     ? Math.ceil(draw.ticket_price * (1 - discountPct / 100))
     : draw.ticket_price
   const totalCost = unitPrice * qty
-
-  // Ensure discount doesn't make ticket free (min ৳1 per ticket)
   const safeCost = Math.max(qty, totalCost)
 
   if (buyer.balance < safeCost) return res.status(400).json({ error: 'Insufficient balance' })
@@ -110,7 +125,6 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
   await db.update(usersTable).set({
     balance: buyer.balance - safeCost,
     tickets_bought: buyer.tickets_bought + qty,
-    // Clear used bonus if it was used
     ...(hasActiveBonus ? { referral_bonus_pct: 0, referral_bonus_expires: null } : {}),
   }).where(eq(usersTable.id, req.user!.id))
 
@@ -122,30 +136,33 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     if (bc) await db.update(businessCodesTable).set({ usage_count: bc.usage_count + qty }).where(eq(businessCodesTable.id, businessCodeId))
   }
 
-  // Give referrer their bonus (7 days)
-  if (referrer) {
+  // Give user partner code owner their reward
+  if (userPartnerReferrer && userPartnerReferrerRewardPct > 0) {
     const referrerBonus = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
     await db.update(usersTable).set({
-      referral_bonus_pct: 50,
+      referral_bonus_pct: userPartnerReferrerRewardPct,
       referral_bonus_expires: referrerBonus,
-    }).where(eq(usersTable.id, referrer.id))
+    }).where(eq(usersTable.id, userPartnerReferrer.id))
 
     await db.insert(notificationsTable).values({
-      user_id: referrer.id,
-      message: `🎁 ${buyer.full_name} used your referral! You've earned a 50% discount on your next ticket purchase. Valid for 7 days! 🎟️`,
+      user_id: userPartnerReferrer.id,
+      message: `🎁 ${buyer.full_name} used your partner code! You've earned ${userPartnerReferrerRewardPct}% discount on your next ticket. Valid for 7 days! 🎟️`,
     })
   }
 
-  const discountNote = discountPct > 0
-    ? ` (${discountPct}% referral discount applied)`
-    : ''
-
+  // Notify buyer
+  const discountNote = discountPct > 0 ? ` (${discountPct}% discount applied)` : ''
   await db.insert(notificationsTable).values({
     user_id: req.user!.id,
-    message: `🎟️ You purchased ${qty} ticket${qty > 1 ? 's' : ''} for draw "${draw.name}" — Total: ৳${safeCost}${discountNote}. Good luck! 🍀`,
+    message: `🎟️ Purchase Successful! You bought ${qty} ticket${qty > 1 ? 's' : ''} for "${draw.name}" — Total: ৳${safeCost}${discountNote}. Good luck! 🍀`,
   })
 
-  res.status(201).json({ tickets, discount_applied: discountPct, total_cost: safeCost })
+  res.status(201).json({
+    tickets,
+    discount_applied: discountPct,
+    discount_type: discountType,
+    total_cost: safeCost,
+  })
 })
 
 export default router

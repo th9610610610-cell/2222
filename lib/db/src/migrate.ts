@@ -183,6 +183,42 @@ export async function runMigrations(connectionString: string): Promise<void> {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_bonus_pct INTEGER NOT NULL DEFAULT 0`)
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_bonus_expires TIMESTAMP`)
 
+    // Feature: Business partner codes
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS business_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code TEXT NOT NULL UNIQUE,
+        discount_pct INTEGER NOT NULL DEFAULT 50,
+        usage_limit INTEGER NOT NULL DEFAULT 100,
+        usage_count INTEGER NOT NULL DEFAULT 0,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        description TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+
+    // Feature: User Partner Code — auto-generated per user
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_code TEXT`)
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE users ADD CONSTRAINT users_partner_code_unique UNIQUE (partner_code);
+      EXCEPTION WHEN duplicate_table THEN null;
+      WHEN duplicate_object THEN null;
+      END $$
+    `)
+    // Backfill partner codes for existing users who don't have one
+    await client.query(`
+      UPDATE users
+      SET partner_code = upper(substring(replace(id::text, '-', ''), 1, 7))
+      WHERE partner_code IS NULL OR partner_code = ''
+    `)
+
+    // Feature: User Partner Code settings
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_partner_code_enabled BOOLEAN NOT NULL DEFAULT false`)
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_partner_buyer_discount_pct INTEGER NOT NULL DEFAULT 10`)
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_partner_referrer_reward_pct INTEGER NOT NULL DEFAULT 10`)
+
     console.log('[migrate] All migrations applied successfully')
   } catch (err) {
     console.error('[migrate] Migration failed:', err)

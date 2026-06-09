@@ -20,6 +20,7 @@ export const usersTable = pgTable('users', {
   is_flagged: boolean('is_flagged').notNull().default(false),
   referral_bonus_pct: integer('referral_bonus_pct').notNull().default(0),
   referral_bonus_expires: timestamp('referral_bonus_expires'),
+  partner_code: text('partner_code').unique(),
   created_at: timestamp('created_at').notNull().defaultNow(),
 })
 
@@ -84,6 +85,9 @@ export const settingsTable = pgTable('settings', {
   whatsapp_number: text('whatsapp_number').notNull().default(''),
   payment_number: text('payment_number').notNull().default(''),
   announcement: text('announcement').notNull().default(''),
+  user_partner_code_enabled: boolean('user_partner_code_enabled').notNull().default(false),
+  user_partner_buyer_discount_pct: integer('user_partner_buyer_discount_pct').notNull().default(10),
+  user_partner_referrer_reward_pct: integer('user_partner_referrer_reward_pct').notNull().default(10),
 })
 
 export const businessCodesTable = pgTable('business_codes', {

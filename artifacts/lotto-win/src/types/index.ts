@@ -12,6 +12,7 @@ export interface User {
   is_flagged: boolean
   referral_bonus_pct: number
   referral_bonus_expires: string | null
+  partner_code: string | null
   created_at: string
 }
 
@@ -82,6 +83,9 @@ export interface Settings {
   whatsapp_number: string
   payment_number: string
   announcement: string
+  user_partner_code_enabled?: boolean
+  user_partner_buyer_discount_pct?: number
+  user_partner_referrer_reward_pct?: number
 }
 
 export type AdType = 'text' | 'image' | 'video'
