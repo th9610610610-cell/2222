@@ -31,8 +31,7 @@ export default function DrawsPage() {
   const [qty, setQty] = useState<Record<string, number>>({})
   const [couponCode, setCouponCode] = useState<Record<string, string>>({})
   const [couponState, setCouponState] = useState<Record<string, CouponState>>({})
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [drawResult, setDrawResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const hasActiveBonus = (user?.referral_bonus_pct ?? 0) > 0 &&
@@ -111,8 +110,7 @@ export default function DrawsPage() {
     const quantity = qty[draw.id] || 1
     const code = couponCode[draw.id]?.trim() || ''
     setBuying(draw.id)
-    setSuccessMsg(null)
-    setErrorMsg(null)
+    setDrawResult(p => ({ ...p, [draw.id]: null }))
 
     const res = await fetch(`${BASE}/api/tickets`, {
       method: 'POST',
@@ -127,17 +125,18 @@ export default function DrawsPage() {
     setBuying(null)
 
     if (!res.ok) {
-      setErrorMsg('❌ ' + (data.error || 'Purchase failed'))
+      setDrawResult(p => ({ ...p, [draw.id]: { ok: false, text: '❌ ' + (data.error || 'Purchase failed') } }))
+      setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 5000)
       return
     }
 
-    const discountNote = data.discount_applied > 0 ? ` — ${data.discount_applied}% discount applied!` : ''
-    setSuccessMsg(`✅ Purchase Successful! ${quantity} ticket${quantity > 1 ? 's' : ''} for "${draw.name}" · Total: ${formatCurrency(data.total_cost)}${discountNote}`)
+    const discountNote = data.discount_applied > 0 ? ` · ${data.discount_applied}% discount!` : ''
+    setDrawResult(p => ({ ...p, [draw.id]: { ok: true, text: `✅ Bought ${quantity} ticket${quantity > 1 ? 's' : ''}! Total: ${formatCurrency(data.total_cost)}${discountNote}` } }))
     setCouponCode(p => ({ ...p, [draw.id]: '' }))
     setCouponState(p => ({ ...p, [draw.id]: emptyCoupon() }))
     load()
     refresh()
-    setTimeout(() => setSuccessMsg(null), 6000)
+    setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 6000)
   }
 
   const statusColor = (s: string) => {
@@ -202,28 +201,6 @@ export default function DrawsPage() {
                 Expires: {new Date(user.referral_bonus_expires!).toLocaleDateString('en-GB')}
               </p>
             </div>
-          </div>
-        )}
-
-        {/* Success message */}
-        {successMsg && (
-          <div style={{
-            background: 'rgba(80,200,80,0.12)', border: '1px solid rgba(80,200,80,0.4)',
-            borderRadius: '12px', padding: '14px 16px', marginBottom: '16px',
-            color: '#4f4', fontSize: '14px', fontFamily: 'Poppins, sans-serif', lineHeight: '1.5',
-          }}>
-            {successMsg}
-          </div>
-        )}
-
-        {/* Error message */}
-        {errorMsg && (
-          <div style={{
-            background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)',
-            borderRadius: '12px', padding: '12px 16px', marginBottom: '16px',
-            color: '#f88', fontSize: '14px',
-          }}>
-            {errorMsg}
           </div>
         )}
 
@@ -373,6 +350,19 @@ export default function DrawsPage() {
                       }
                     </button>
                   </div>
+
+                  {/* Inline result — appears below the buy button */}
+                  {drawResult[draw.id] && (
+                    <div style={{
+                      borderRadius: '10px', padding: '11px 14px',
+                      background: drawResult[draw.id]!.ok ? 'rgba(80,200,80,0.12)' : 'rgba(232,24,122,0.12)',
+                      border: `1px solid ${drawResult[draw.id]!.ok ? 'rgba(80,200,80,0.4)' : 'rgba(232,24,122,0.4)'}`,
+                      color: drawResult[draw.id]!.ok ? '#4ade80' : '#f88',
+                      fontSize: '13px', fontFamily: 'Poppins, sans-serif', fontWeight: 600,
+                    }}>
+                      {drawResult[draw.id]!.text}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

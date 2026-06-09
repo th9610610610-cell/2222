@@ -736,10 +736,11 @@ export default function AdminPage() {
                       {ad.is_active ? 'Hide' : 'Show'}
                     </button>
                     <button onClick={async () => {
+                      if (!confirm('Delete this ad permanently?')) return
                       await fetch(`${BASE}/api/ads/${ad.id}`, { method: 'DELETE', headers })
-                      setMsg('Ad deleted'); loadAll()
-                    }} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontSize: '12px', fontWeight: 600 }}>
-                      🗑
+                      setMsg('✅ Ad deleted'); loadAll()
+                    }} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(232,24,122,0.4)', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontSize: '12px', fontWeight: 700 }}>
+                      🗑 Delete
                     </button>
                   </div>
                 </div>

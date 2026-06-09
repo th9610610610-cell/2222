@@ -14,18 +14,18 @@ interface WinnerTicket {
   created_at: string
 }
 
-const VINTAGE_TEMPLATES = [
-  { bg: '#c0392b', stubBg: '#a93226', border: '#e74c3c', text: '#fff', accent: '#ffcdd2', sideNum: true, star: true, label: 'LOTTO WIN' },
-  { bg: '#1a2a4a', stubBg: '#121e36', border: '#2c4a8a', text: '#fff', accent: '#90caf9', sideNum: false, star: false, label: 'LUCKY DRAW' },
-  { bg: '#c9950a', stubBg: '#a87e08', border: '#daa520', text: '#2a1800', accent: '#4a3000', sideNum: false, star: false, label: 'ADMIT ONE', admitOne: true },
-  { bg: '#1a7575', stubBg: '#155e5e', border: '#20a0a0', text: '#fff', accent: '#80deea', sideNum: false, star: true, label: 'WINNER' },
-  { bg: '#6a2fa0', stubBg: '#551f88', border: '#9b59d8', text: '#fff', accent: '#e040fb', sideNum: true, star: false, label: 'MEGA PRIZE' },
-  { bg: '#c8b98a', stubBg: '#b09a6a', border: '#a0885a', text: '#2a1800', accent: '#4a3000', sideNum: false, star: false, label: 'PRIZE', barcode: true },
-  { bg: '#4a5c2a', stubBg: '#384520', border: '#6a7c3a', text: '#fff', accent: '#c5e1a5', sideNum: false, star: true, label: 'SUPER WIN' },
-  { bg: '#1a1a1a', stubBg: '#0d0d0d', border: '#3a3a3a', text: '#d4af37', accent: '#ffd700', sideNum: true, star: false, label: 'ROYAL', crown: true },
+const TICKET_COLORS = [
+  { bg: '#c8b98a', text: '#2a1800', accent: '#6b3a1f' },
+  { bg: '#1a2a4a', text: '#fff', accent: '#90caf9' },
+  { bg: '#c0392b', text: '#fff', accent: '#ffcdd2' },
+  { bg: '#1a7575', text: '#fff', accent: '#80deea' },
+  { bg: '#6a2fa0', text: '#fff', accent: '#e040fb' },
+  { bg: '#4a5c2a', text: '#fff', accent: '#c5e1a5' },
+  { bg: '#c9950a', text: '#2a1800', accent: '#4a3000' },
+  { bg: '#1a1a1a', text: '#d4af37', accent: '#ffd700' },
 ]
 
-function VintageTicket({
+function ClassicTicket({
   ticket, isWinner, canPick, picking, onPick, idx,
 }: {
   ticket: WinnerTicket
@@ -35,152 +35,119 @@ function VintageTicket({
   onPick: (id: string) => void
   idx: number
 }) {
-  const tpl = isWinner
-    ? { bg: '#1a1200', stubBg: '#0d0a00', border: '#d4af37', text: '#ffd700', accent: '#ffd700', sideNum: true, star: true, label: '🏆 WINNER', crown: true }
-    : VINTAGE_TEMPLATES[idx % VINTAGE_TEMPLATES.length]
-
-  const sideNum = ticket.ticket_ref.slice(-6).toUpperCase()
+  const palette = isWinner
+    ? { bg: '#1a1200', text: '#ffd700', accent: '#ffd700' }
+    : TICKET_COLORS[idx % TICKET_COLORS.length]
 
   return (
     <div
       onClick={() => canPick && !picking && onPick(ticket.id)}
+      title={`TKT-${ticket.ticket_ref}${ticket.user_name ? ` · ${ticket.user_name}` : ''}`}
       style={{
         position: 'relative',
         cursor: canPick ? 'pointer' : 'default',
-        filter: isWinner ? 'drop-shadow(0 0 10px rgba(212,175,55,0.5))' : 'drop-shadow(0 2px 8px rgba(0,0,0,0.5))',
+        filter: isWinner
+          ? 'drop-shadow(0 0 6px rgba(212,175,55,0.7))'
+          : 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))',
         animation: isWinner ? 'winnerPulse 2s ease-in-out infinite' : 'none',
-        marginBottom: '2px',
       }}
     >
-      {/* Ticket body */}
+      {/* Ticket shape */}
       <div style={{
         display: 'flex',
-        background: tpl.bg,
-        borderRadius: '6px',
-        border: `2px solid ${tpl.border}`,
+        background: palette.bg,
+        borderRadius: '5px',
+        border: `1.5px solid ${palette.accent}55`,
         overflow: 'hidden',
+        height: '52px',
         position: 'relative',
-        minHeight: '56px',
       }}>
-        {/* Left side numbers (for some templates) */}
-        {tpl.sideNum && (
-          <div style={{
-            width: '20px', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRight: `1.5px dashed ${tpl.text}44`,
-            padding: '4px 2px',
-          }}>
-            <span style={{
-              fontFamily: 'Courier New, monospace', fontSize: '8px',
-              color: tpl.text, opacity: 0.6, letterSpacing: '1px',
-              writingMode: 'vertical-rl', transform: 'rotate(180deg)',
-            }}>{sideNum}</span>
-          </div>
-        )}
+        {/* Wavy perforated left edge */}
+        <div style={{
+          width: '6px', flexShrink: 0,
+          background: `repeating-linear-gradient(to bottom, ${palette.accent}44 0, ${palette.accent}44 3px, transparent 3px, transparent 6px)`,
+          borderRight: `1px dashed ${palette.accent}55`,
+        }} />
 
         {/* Main body */}
         <div style={{
-          flex: 1, padding: '8px 10px',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '3px 4px',
           position: 'relative',
         }}>
-          {/* Inner border frame */}
+          {/* Inner frame */}
           <div style={{
-            position: 'absolute', inset: '4px',
-            border: `1px solid ${tpl.text}30`,
-            borderRadius: '4px',
+            position: 'absolute', inset: '3px',
+            border: `1px solid ${palette.accent}33`,
+            borderRadius: '3px',
             pointerEvents: 'none',
           }} />
 
-          {/* Stars */}
-          {tpl.star && (
-            <>
-              <span style={{ position: 'absolute', top: '6px', left: tpl.sideNum ? '8px' : '6px', color: tpl.text, fontSize: '9px', opacity: 0.7 }}>★</span>
-              <span style={{ position: 'absolute', bottom: '6px', left: tpl.sideNum ? '8px' : '6px', color: tpl.text, fontSize: '9px', opacity: 0.7 }}>★</span>
-            </>
-          )}
-          {(tpl as any).crown && (
-            <span style={{ position: 'absolute', top: '5px', left: '50%', transform: 'translateX(-50%)', color: tpl.accent, fontSize: '10px' }}>♛</span>
+          {isWinner && (
+            <span style={{ position: 'absolute', top: '2px', left: '50%', transform: 'translateX(-50%)', color: palette.accent, fontSize: '8px' }}>♛</span>
           )}
 
-          {/* Ticket number */}
-          <div style={{ textAlign: 'center', paddingTop: (tpl as any).crown ? '12px' : '0' }}>
-            <span style={{
-              fontFamily: 'Arial Black, sans-serif', fontWeight: 900,
-              fontSize: '11px', color: tpl.text,
-              letterSpacing: '1px',
-              textShadow: isWinner ? '0 0 10px rgba(255,215,0,0.8)' : 'none',
-            }}>TKT-{ticket.ticket_ref}</span>
-          </div>
-
-          {/* Username */}
+          <span style={{
+            fontFamily: 'Arial Black, sans-serif',
+            fontWeight: 900,
+            fontSize: '9px',
+            color: palette.text,
+            letterSpacing: '0.5px',
+            textAlign: 'center',
+            lineHeight: 1.2,
+            zIndex: 1,
+            paddingTop: isWinner ? '8px' : '0',
+          }}>
+            TKT-{ticket.ticket_ref}
+          </span>
           {ticket.user_name && (
-            <div style={{ textAlign: 'center', marginTop: '1px' }}>
-              <span style={{ fontSize: '7px', color: tpl.text, opacity: 0.55, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.3px' }}>
-                {ticket.user_name.toUpperCase().slice(0, 10)}
-              </span>
-            </div>
+            <span style={{
+              fontSize: '6px', color: palette.text, opacity: 0.55,
+              fontFamily: 'Poppins, sans-serif', letterSpacing: '0.2px',
+              overflow: 'hidden', maxWidth: '100%', textAlign: 'center',
+              whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+            }}>
+              {ticket.user_name.toUpperCase().slice(0, 8)}
+            </span>
           )}
         </div>
 
-        {/* Perforated divider + stub */}
+        {/* Perforated divider */}
         <div style={{
           width: '1.5px',
-          background: `repeating-linear-gradient(to bottom, ${tpl.text}55 0, ${tpl.text}55 4px, transparent 4px, transparent 8px)`,
+          background: `repeating-linear-gradient(to bottom, ${palette.text}55 0, ${palette.text}55 3px, transparent 3px, transparent 6px)`,
           flexShrink: 0,
         }} />
 
-        {/* Stub / right side */}
+        {/* Barcode stub */}
         <div style={{
-          width: '36px', flexShrink: 0,
-          background: tpl.stubBg,
+          width: '18px', flexShrink: 0,
+          background: `${palette.bg}cc`,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           padding: '4px 2px',
-          gap: '4px',
         }}>
-          {(tpl as any).admitOne ? (
-            <span style={{
-              fontFamily: 'Georgia, serif', fontSize: '7px',
-              color: tpl.text, opacity: 0.8, letterSpacing: '1px',
-              writingMode: 'vertical-rl', textAlign: 'center',
-            }}>ADMIT ONE</span>
-          ) : (tpl as any).barcode ? (
-            <svg width="18" height="40" viewBox="0 0 18 40">
-              {[0,1,2,3,4,5,6,7,8].map(i => (
-                <rect key={i} x={i * 2} y="2" width={i % 3 === 0 ? 2 : 1} height="36"
-                  fill={tpl.text} opacity="0.6" />
-              ))}
-            </svg>
-          ) : (
-            <span style={{
-              fontFamily: 'Courier New, monospace', fontSize: '8px',
-              color: tpl.text, opacity: 0.6, letterSpacing: '1px',
-              writingMode: 'vertical-rl', transform: 'rotate(180deg)',
-            }}>{sideNum}</span>
-          )}
+          <svg width="10" height="36" viewBox="0 0 10 36">
+            {[0,1,2,3,4,5,6,7,8,9].map(i => (
+              <rect key={i} x={i} y={i % 3 === 0 ? 0 : 2} width={i % 4 === 0 ? 2 : 1} height={i % 3 === 0 ? 36 : 32}
+                fill={palette.text} opacity={0.5 + (i % 3) * 0.15} />
+            ))}
+          </svg>
         </div>
       </div>
 
       {/* Loading overlay */}
       {picking === ticket.id && (
         <div style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.6)',
-          borderRadius: '8px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)',
+          borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ width: '20px', height: '20px', border: '2px solid #f0a500', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+          <div style={{ width: '14px', height: '14px', border: '2px solid #f0a500', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
         </div>
-      )}
-
-      {/* Hover highlight */}
-      {canPick && (
-        <div
-          style={{ position: 'absolute', inset: 0, borderRadius: '8px', background: 'transparent', transition: 'background 0.15s' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.07)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-        />
       )}
     </div>
   )
@@ -269,8 +236,6 @@ export default function WinnerPage() {
       `}</style>
 
       <div style={{ padding: '20px 16px 0' }}>
-
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
           <span style={{ fontSize: '22px' }}>🏆</span>
           <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '20px', color: '#fff', margin: 0 }}>Winner Page</h2>
@@ -280,7 +245,6 @@ export default function WinnerPage() {
           {adminToken && <span style={{ color: '#f0a500', marginLeft: '6px', fontWeight: 700 }}>Admin: Tap any ticket to pick as winner.</span>}
         </p>
 
-        {/* Message */}
         {msg && (
           <div style={{
             background: msg.type === 'ok' ? 'rgba(80,200,80,0.15)' : 'rgba(232,24,122,0.15)',
@@ -356,7 +320,7 @@ export default function WinnerPage() {
               </div>
             )}
 
-            {/* Tickets Grid */}
+            {/* Tickets Grid — 6 per row */}
             {selectedDraw && (
               ticketsLoading ? (
                 <p style={{ color: '#8888aa', textAlign: 'center', padding: '30px 0' }}>Loading tickets...</p>
@@ -367,12 +331,12 @@ export default function WinnerPage() {
                 </div>
               ) : (
                 <>
-                  <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px', textAlign: 'center' }}>
+                  <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif', marginBottom: '10px', textAlign: 'center' }}>
                     {tickets.length} tickets · shuffled for fairness
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '5px' }}>
                     {tickets.map((ticket, idx) => (
-                      <VintageTicket
+                      <ClassicTicket
                         key={ticket.id}
                         ticket={ticket}
                         isWinner={ticket.is_winner}
