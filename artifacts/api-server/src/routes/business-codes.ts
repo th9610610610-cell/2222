@@ -37,7 +37,7 @@ router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
 
 // Admin: toggle active / update
 router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
-  const { id } = req.params
+  const id = String(req.params.id)
   const { is_active, usage_limit, discount_pct, expires_at, description } = req.body
   const updates: any = {}
   if (is_active !== undefined) updates.is_active = is_active
@@ -51,7 +51,7 @@ router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
 
 // Admin: delete code
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
-  await db.delete(businessCodesTable).where(eq(businessCodesTable.id, req.params.id))
+  await db.delete(businessCodesTable).where(eq(businessCodesTable.id, String(req.params.id)))
   res.json({ ok: true })
 })
 
