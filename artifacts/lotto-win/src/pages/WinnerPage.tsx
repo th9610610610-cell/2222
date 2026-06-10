@@ -21,7 +21,7 @@ function LottoTicket({
   isWinner: boolean
   canPick: boolean
   picking: string | null
-  onPick: (id: string) => void
+  onPick: (t: WinnerTicket) => void
 }) {
   const bg = isWinner ? '#ffd700' : '#d4b896'
   const border = isWinner ? '#b8860b' : '#a0845a'
@@ -29,7 +29,7 @@ function LottoTicket({
 
   return (
     <div
-      onClick={() => canPick && !picking && onPick(ticket.id)}
+      onClick={() => canPick && !picking && onPick(ticket)}
       title={`TKT-${ticket.ticket_ref}`}
       style={{
         position: 'relative',
@@ -133,6 +133,7 @@ export default function WinnerPage() {
   const [ticketsLoading, setTicketsLoading] = useState(false)
   const [picking, setPicking] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [confirmTicket, setConfirmTicket] = useState<WinnerTicket | null>(null)
   const adminToken = typeof window !== 'undefined' ? localStorage.getItem('lw_token') : null
 
   useEffect(() => {
@@ -160,8 +161,14 @@ export default function WinnerPage() {
     setTicketsLoading(false)
   }
 
-  const pickWinner = async (ticketId: string) => {
-    if (!selectedDraw || !adminToken) return
+  const requestPick = (ticket: WinnerTicket) => {
+    setConfirmTicket(ticket)
+  }
+
+  const confirmPick = async () => {
+    if (!confirmTicket || !selectedDraw || !adminToken) return
+    const ticketId = confirmTicket.id
+    setConfirmTicket(null)
     setPicking(ticketId)
     setMsg(null)
     try {
@@ -319,7 +326,7 @@ export default function WinnerPage() {
                         isWinner={ticket.is_winner}
                         canPick={!!(adminToken && selectedDraw.status === 'live' && !selectedDraw.winner_name)}
                         picking={picking}
-                        onPick={pickWinner}
+                        onPick={requestPick}
                       />
                     ))}
                   </div>
@@ -329,6 +336,71 @@ export default function WinnerPage() {
           </>
         )}
       </div>
+
+      {/* Winner Confirmation Modal */}
+      {confirmTicket && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '24px',
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1a0b38, #0d1540)',
+            border: '1.5px solid rgba(240,165,0,0.5)',
+            borderRadius: '20px', padding: '28px 24px', width: '100%', maxWidth: '360px',
+            textAlign: 'center', boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🏆</div>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, color: '#fff', fontSize: '18px', marginBottom: '8px' }}>
+              Confirm Winner
+            </h3>
+            <p style={{ color: '#aaa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '20px' }}>
+              You are about to declare this ticket as the winner. This action <strong style={{ color: '#f88' }}>cannot be undone</strong>.
+            </p>
+
+            {/* Ticket preview */}
+            <div style={{
+              background: 'rgba(240,165,0,0.08)', border: '1px dashed rgba(240,165,0,0.4)',
+              borderRadius: '12px', padding: '14px 18px', marginBottom: '24px',
+            }}>
+              <div style={{ fontFamily: 'monospace', color: '#f0a500', fontWeight: 900, fontSize: '18px', letterSpacing: '2px', marginBottom: '4px' }}>
+                TKT-{confirmTicket.ticket_ref}
+              </div>
+              {confirmTicket.user_name && (
+                <div style={{ color: '#ccc', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
+                  👤 {confirmTicket.user_name}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setConfirmTicket(null)}
+                style={{
+                  flex: 1, padding: '13px', borderRadius: '12px',
+                  border: '1.5px solid rgba(255,255,255,0.15)', background: 'transparent',
+                  color: '#aaa', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPick}
+                style={{
+                  flex: 2, padding: '13px', borderRadius: '12px', border: 'none',
+                  background: 'linear-gradient(90deg, #f0a500, #e8187a)',
+                  color: '#fff', fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '14px',
+                  cursor: 'pointer', boxShadow: '0 4px 20px rgba(240,165,0,0.4)',
+                }}
+              >
+                🏆 Yes, Declare Winner
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

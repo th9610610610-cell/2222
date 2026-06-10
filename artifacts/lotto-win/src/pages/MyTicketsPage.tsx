@@ -22,9 +22,7 @@ function fmtTime(dateStr: string) {
 function ticketId(ref: string) { return `ID-${ref}` }
 function drawId(draw?: Ticket['draw']) {
   if (!draw) return 'N/A'
-  const raw = draw.draw_number
-    ? String(draw.draw_number).padStart(3,'0')
-    : draw.id.replace(/-/g,'').slice(0,6).toUpperCase()
+  const raw = draw.id.replace(/-/g,'').slice(0,5).toUpperCase()
   return `ID-${raw}`
 }
 
@@ -97,19 +95,19 @@ function TicketModal({ ticket: initialTicket, userName, token, onClose }: {
           </div>
 
           {/* Info rows */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'8px', justifyContent:'center' }}>
+          <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'6px', justifyContent:'center' }}>
             {ROW_ITEMS.map(({ icon, label, getValue }) => (
               <div key={label} style={{
-                height:'34px', borderRadius:'10px', padding:'0 10px',
+                height:'30px', borderRadius:'10px', padding:'0 10px',
                 background:'rgba(0,0,0,0.06)',
-                display:'flex', alignItems:'center', gap:'8px', flexShrink:0,
+                display:'flex', alignItems:'center', gap:'6px', flexShrink:0,
               }}>
-                <span style={{ fontSize:'20px', width:'20px', height:'20px', lineHeight:'20px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{icon}</span>
-                <span style={{ fontSize:'14px', fontWeight:600, color:'#444', fontFamily:'Poppins, sans-serif', minWidth:'24px' }}>{label}:</span>
+                <span style={{ fontSize:'16px', width:'18px', height:'18px', lineHeight:'18px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{icon}</span>
+                <span style={{ fontSize:'13px', fontWeight:600, color:'#444', fontFamily:'Poppins, sans-serif', minWidth:'22px' }}>{label}:</span>
                 <span style={{
-                  fontSize:'15px', fontWeight:700, color: label === 'TK' ? '#2563eb' : label === 'DR' ? '#dc2626' : '#1a1a2e',
+                  fontSize:'13px', fontWeight:700, color: label === 'TK' ? '#2563eb' : label === 'DR' ? '#dc2626' : '#1a1a2e',
                   fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right',
-                  letterSpacing: (label === 'TK' || label === 'DR') ? '0.5px' : 0,
+                  letterSpacing: (label === 'TK' || label === 'DR') ? '0.4px' : 0,
                 }}>
                   {getValue(ticket)}
                 </span>
