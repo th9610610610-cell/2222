@@ -16,8 +16,59 @@ const pinoHttp: any = (pinoHttpLib as any).default ?? pinoHttpLib;
 
 const app: Express = express();
 
-app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+// Trust proxy (needed when behind Vercel/nginx for correct IPs)
+app.set('trust proxy', 1);
 
+// Security headers with Helmet — CSP, HSTS, X-Frame-Options, etc.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+  crossOriginEmbedderPolicy: false,
+  frameguard: { action: 'deny' },
+  noSniff: true,
+  xssFilter: true,
+}));
+
+// CORS — only allow trusted origins
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean)
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow no-origin requests (server-to-server, curl) in development only
+    if (!origin) {
+      if (process.env.NODE_ENV !== 'production') return callback(null, true)
+      return callback(new Error('No origin'), false)
+    }
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+    return callback(new Error(`CORS: origin ${origin} not allowed`), false)
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Global rate limiter
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 300,
@@ -27,6 +78,7 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
+// Strict auth rate limiter (register + login)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -36,6 +88,17 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth', authLimiter);
 
+// Ticket purchase rate limiter
+const ticketLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many ticket purchase attempts. Please slow down.' },
+});
+app.use('/api/tickets', ticketLimiter);
+
+// Request logging with sensitive field redaction
 app.use(
   pinoHttp({
     logger,
@@ -55,9 +118,9 @@ app.use(
     },
   }),
 );
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 app.use("/api", router);
 
