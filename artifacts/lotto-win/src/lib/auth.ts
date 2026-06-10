@@ -4,7 +4,7 @@ import { User } from '../types'
 export interface AuthContextType {
   user: User | null
   token: string | null
-  login: (phone: string, password: string) => Promise<{ error?: string }>
+  login: (phone: string, password: string) => Promise<{ error?: string; requireOtp?: boolean; email?: string }>
   logout: () => void
   refresh: () => Promise<void>
 }
