@@ -47,29 +47,3 @@ Thumbs.db
 # Replit
 .cache/
 .local/
-.vercel
-
-# Security: never commit secrets or env files
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-*.p12
-*.pfx
-*.crt
-*.cer
-*.der
-secrets/
-private/
-
-# Database dumps
-*.sql
-*.dump
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs that may contain sensitive data
-*.log
-logs/

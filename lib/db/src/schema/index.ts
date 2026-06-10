@@ -11,8 +11,6 @@ export const usersTable = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   full_name: text('full_name').notNull(),
   phone: text('phone').notNull().unique(),
-  email: text('email').unique(),
-  email_verified: boolean('email_verified').notNull().default(false),
   password_hash: text('password_hash').notNull(),
   role: userRoleEnum('role').notNull().default('user'),
   balance: integer('balance').notNull().default(0),
@@ -20,31 +18,8 @@ export const usersTable = pgTable('users', {
   total_won: integer('total_won').notNull().default(0),
   tickets_bought: integer('tickets_bought').notNull().default(0),
   is_flagged: boolean('is_flagged').notNull().default(false),
-  login_attempts: integer('login_attempts').notNull().default(0),
-  lockout_until: timestamp('lockout_until'),
   referral_bonus_pct: integer('referral_bonus_pct').notNull().default(0),
   referral_bonus_expires: timestamp('referral_bonus_expires'),
-  partner_code: text('partner_code').unique(),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-})
-
-export const otpTokensTable = pgTable('otp_tokens', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  email: text('email').notNull(),
-  code: text('code').notNull(),
-  type: text('type').notNull(),
-  expires_at: timestamp('expires_at').notNull(),
-  used: boolean('used').notNull().default(false),
-  ip_address: text('ip_address'),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-})
-
-export const knownDevicesTable = pgTable('known_devices', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  user_id: uuid('user_id').notNull().references(() => usersTable.id, { onDelete: 'cascade' }),
-  device_hash: text('device_hash').notNull(),
-  user_agent: text('user_agent'),
-  last_seen: timestamp('last_seen').notNull().defaultNow(),
   created_at: timestamp('created_at').notNull().defaultNow(),
 })
 
@@ -109,9 +84,6 @@ export const settingsTable = pgTable('settings', {
   whatsapp_number: text('whatsapp_number').notNull().default(''),
   payment_number: text('payment_number').notNull().default(''),
   announcement: text('announcement').notNull().default(''),
-  user_partner_code_enabled: boolean('user_partner_code_enabled').notNull().default(false),
-  user_partner_buyer_discount_pct: integer('user_partner_buyer_discount_pct').notNull().default(10),
-  user_partner_referrer_reward_pct: integer('user_partner_referrer_reward_pct').notNull().default(10),
 })
 
 export const businessCodesTable = pgTable('business_codes', {
@@ -161,18 +133,6 @@ export const depositsRelations = relations(depositsTable, ({ one }) => ({
 export const notificationsRelations = relations(notificationsTable, ({ one }) => ({
   user: one(usersTable, { fields: [notificationsTable.user_id], references: [usersTable.id] }),
 }))
-
-export const auditLogsTable = pgTable('audit_logs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  actor_id: uuid('actor_id'),
-  actor_role: text('actor_role'),
-  action: text('action').notNull(),
-  target_type: text('target_type'),
-  target_id: text('target_id'),
-  detail: text('detail'),
-  ip_address: text('ip_address'),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-})
 
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, created_at: true })
 export const insertDrawSchema = createInsertSchema(drawsTable).omit({ id: true, created_at: true })

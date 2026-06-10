@@ -8,62 +8,27 @@ const router = Router()
 router.get('/', async (_req, res) => {
   try {
     const [settings] = await db.select().from(settingsTable)
-    res.json({
-      settings: settings || {
-        bkash_number: '', nagad_number: '', rocket_number: '',
-        whatsapp_number: '', payment_number: '', announcement: '',
-        user_partner_code_enabled: false,
-        user_partner_buyer_discount_pct: 10,
-        user_partner_referrer_reward_pct: 10,
-      },
-    })
+    res.json({ settings: settings || { bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '' } })
   } catch (e: any) {
     console.error('[settings] GET error:', e)
-    res.json({
-      settings: {
-        bkash_number: '', nagad_number: '', rocket_number: '',
-        whatsapp_number: '', payment_number: '', announcement: '',
-        user_partner_code_enabled: false,
-        user_partner_buyer_discount_pct: 10,
-        user_partner_referrer_reward_pct: 10,
-      },
-    })
+    res.json({ settings: { bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '' } })
   }
 })
 
 router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const {
-      bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number,
-      announcement, user_partner_code_enabled, user_partner_buyer_discount_pct,
-      user_partner_referrer_reward_pct,
-    } = req.body
-
-    const [existing] = await db.select({
-      id: settingsTable.id,
-      announcement: settingsTable.announcement,
-    }).from(settingsTable)
-
-    const values = {
-      bkash_number: bkash_number ?? '',
-      nagad_number: nagad_number ?? '',
-      rocket_number: rocket_number ?? '',
-      whatsapp_number: whatsapp_number ?? '',
-      payment_number: payment_number ?? '',
-      announcement: announcement ?? '',
-      user_partner_code_enabled: Boolean(user_partner_code_enabled),
-      user_partner_buyer_discount_pct: Number(user_partner_buyer_discount_pct ?? 10),
-      user_partner_referrer_reward_pct: Number(user_partner_referrer_reward_pct ?? 10),
-    }
+    const { bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number, announcement } = req.body
+    const [existing] = await db.select({ id: settingsTable.id, announcement: settingsTable.announcement }).from(settingsTable)
 
     let settings
     if (existing) {
       const [s] = await db.update(settingsTable)
-        .set(values)
+        .set({ bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number, announcement })
         .where(eq(settingsTable.id, existing.id))
         .returning()
       settings = s
 
+      // Send announcement notification to all users if announcement changed and non-empty
       const prevAnnouncement = existing.announcement || ''
       const newAnnouncement = announcement || ''
       if (newAnnouncement && newAnnouncement !== prevAnnouncement) {
@@ -77,9 +42,12 @@ router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
         ))
       }
     } else {
-      const [s] = await db.insert(settingsTable).values(values).returning()
+      const [s] = await db.insert(settingsTable)
+        .values({ bkash_number, nagad_number, rocket_number, whatsapp_number, payment_number, announcement })
+        .returning()
       settings = s
 
+      // New settings row — send announcement if non-empty
       if (announcement) {
         const allUsers = await db.select({ id: usersTable.id }).from(usersTable)
         await Promise.all(allUsers.map(u =>

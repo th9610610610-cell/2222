@@ -8,12 +8,6 @@ const BASE = API_BASE
 
 type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads' | 'partners'
 
-interface PartnerSettings {
-  user_partner_code_enabled: boolean
-  user_partner_buyer_discount_pct: number
-  user_partner_referrer_reward_pct: number
-}
-
 interface BusinessCode {
   id: string
   code: string
@@ -40,7 +34,6 @@ export default function AdminPage() {
   const [draws, setDraws] = useState<Draw[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '' })
-  const [partnerSettings, setPartnerSettings] = useState<PartnerSettings>({ user_partner_code_enabled: false, user_partner_buyer_discount_pct: 10, user_partner_referrer_reward_pct: 10 })
   const [ads, setAds] = useState<Ad[]>([])
   const [businessCodes, setBusinessCodes] = useState<BusinessCode[]>([])
   const [newAd, setNewAd] = useState({ type: 'text', title: '', content: '', link_url: '' })
@@ -79,14 +72,7 @@ export default function AdminPage() {
       setDeposits(d.deposits || [])
       setDraws(dr.draws || [])
       setUsers(u.users || [])
-      if (s.settings) {
-        setSettings(s.settings)
-        setPartnerSettings({
-          user_partner_code_enabled: s.settings.user_partner_code_enabled ?? false,
-          user_partner_buyer_discount_pct: s.settings.user_partner_buyer_discount_pct ?? 10,
-          user_partner_referrer_reward_pct: s.settings.user_partner_referrer_reward_pct ?? 10,
-        })
-      }
+      if (s.settings) setSettings(s.settings)
       setAds(a.ads || [])
       setBusinessCodes(bc.codes || [])
     } catch (e) {
@@ -513,81 +499,6 @@ export default function AdminPage() {
         {/* PARTNERS TAB */}
         {tab === 'partners' && !loading && (
           <>
-            {/* User Partner Code Settings */}
-            <div style={{ ...cardStyle, border: '1px solid rgba(155,32,216,0.4)', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <div>
-                  <h3 style={{ color: '#fff', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: '15px', marginBottom: '4px' }}>👥 User Partner Code</h3>
-                  <p style={{ color: '#8888aa', fontSize: '12px' }}>Auto-generated code for every user account</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    const newEnabled = !partnerSettings.user_partner_code_enabled
-                    const updated = { ...partnerSettings, user_partner_code_enabled: newEnabled }
-                    setPartnerSettings(updated)
-                    const res = await fetch(`${BASE}/api/settings`, {
-                      method: 'POST', headers,
-                      body: JSON.stringify({ ...settings, ...updated }),
-                    })
-                    if (res.ok) setMsg(newEnabled ? '✅ User Partner Code system ON' : '⛔ User Partner Code system OFF')
-                    else setMsg('❌ Failed to update')
-                  }}
-                  style={{
-                    padding: '8px 18px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '13px',
-                    background: partnerSettings.user_partner_code_enabled
-                      ? 'linear-gradient(90deg, #22c55e, #16a34a)'
-                      : 'rgba(136,136,170,0.25)',
-                    color: partnerSettings.user_partner_code_enabled ? '#fff' : '#8888aa',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {partnerSettings.user_partner_code_enabled ? '● ON' : '○ OFF'}
-                </button>
-              </div>
-
-              {partnerSettings.user_partner_code_enabled && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div>
-                      <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Buyer Discount %</label>
-                      <input
-                        type="number" min={1} max={90}
-                        value={partnerSettings.user_partner_buyer_discount_pct}
-                        onChange={e => setPartnerSettings(p => ({ ...p, user_partner_buyer_discount_pct: Number(e.target.value) }))}
-                        style={inputStyle}
-                      />
-                      <p style={{ color: '#666', fontSize: '11px', marginTop: '3px' }}>Discount for the person using the code</p>
-                    </div>
-                    <div>
-                      <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Partner Reward %</label>
-                      <input
-                        type="number" min={1} max={90}
-                        value={partnerSettings.user_partner_referrer_reward_pct}
-                        onChange={e => setPartnerSettings(p => ({ ...p, user_partner_referrer_reward_pct: Number(e.target.value) }))}
-                        style={inputStyle}
-                      />
-                      <p style={{ color: '#666', fontSize: '11px', marginTop: '3px' }}>Reward for the code owner</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const res = await fetch(`${BASE}/api/settings`, {
-                        method: 'POST', headers,
-                        body: JSON.stringify({ ...settings, ...partnerSettings }),
-                      })
-                      if (res.ok) setMsg('✅ Partner discount rates saved!')
-                      else setMsg('❌ Failed to save')
-                    }}
-                    style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #9b20d8, #e8187a)', color: '#fff', fontWeight: 700, fontSize: '13px' }}
-                  >
-                    Save Discount Rates
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div style={{ borderBottom: '1px solid rgba(155,32,216,0.15)', marginBottom: '16px' }} />
-
             {/* Create Business Partner Code */}
             <div style={cardStyle}>
               <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>🏢 Create Partner Code</h3>
@@ -736,11 +647,10 @@ export default function AdminPage() {
                       {ad.is_active ? 'Hide' : 'Show'}
                     </button>
                     <button onClick={async () => {
-                      if (!confirm('Delete this ad permanently?')) return
                       await fetch(`${BASE}/api/ads/${ad.id}`, { method: 'DELETE', headers })
-                      setMsg('✅ Ad deleted'); loadAll()
-                    }} style={{ padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(232,24,122,0.4)', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontSize: '12px', fontWeight: 700 }}>
-                      🗑 Delete
+                      setMsg('Ad deleted'); loadAll()
+                    }} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontSize: '12px', fontWeight: 600 }}>
+                      🗑
                     </button>
                   </div>
                 </div>
