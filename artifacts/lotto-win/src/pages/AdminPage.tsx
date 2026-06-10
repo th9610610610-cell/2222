@@ -6,7 +6,7 @@ import { formatCurrency, formatDate, formatJackpot } from '../lib/utils'
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
-type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads' | 'partners'
+type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads' | 'partners' | 'security'
 
 interface BusinessCode {
   id: string
@@ -50,6 +50,14 @@ export default function AdminPage() {
   const [newEndDate, setNewEndDate] = useState('')
   const [depositBtnResult, setDepositBtnResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
   const [createDrawResult, setCreateDrawResult] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // 2FA / Security state
+  const [totpQr, setTotpQr] = useState<string | null>(null)
+  const [totpSecret, setTotpSecret] = useState<string | null>(null)
+  const [totpToken, setTotpToken] = useState('')
+  const [totpStatus, setTotpStatus] = useState<{ ok: boolean; text: string } | null>(null)
+  const [totpLoading, setTotpLoading] = useState(false)
+  const [totpEnabled, setTotpEnabled] = useState(false)
 
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
@@ -201,6 +209,31 @@ export default function AdminPage() {
     loadAll()
   }
 
+  const setupTotp = async () => {
+    setTotpLoading(true); setTotpStatus(null)
+    const res = await fetch(`${BASE}/api/totp/setup`, { method: 'POST', headers })
+    const data = await res.json()
+    setTotpLoading(false)
+    if (!res.ok) { setTotpStatus({ ok: false, text: data.error || 'Setup failed' }); return }
+    setTotpQr(data.qr)
+    setTotpSecret(data.secret)
+  }
+
+  const enableTotp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (totpToken.length < 6) return
+    setTotpLoading(true); setTotpStatus(null)
+    const res = await fetch(`${BASE}/api/totp/enable`, {
+      method: 'POST', headers, body: JSON.stringify({ token: totpToken }),
+    })
+    const data = await res.json()
+    setTotpLoading(false)
+    if (!res.ok) { setTotpStatus({ ok: false, text: data.error || 'Verification failed' }); return }
+    setTotpEnabled(true)
+    setTotpStatus({ ok: true, text: '✅ 2FA enabled successfully!' })
+    setTotpQr(null); setTotpSecret(null); setTotpToken('')
+  }
+
   const tabStyle = (t: Tab): React.CSSProperties => ({
     padding: '10px 16px', borderRadius: '10px', border: 'none', cursor: 'pointer',
     background: tab === t ? 'linear-gradient(90deg, #e8187a, #9b20d8)' : 'rgba(155,32,216,0.1)',
@@ -271,13 +304,14 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '20px' }}>
-          {(['deposits', 'draws', 'users', 'partners', 'settings', 'ads'] as Tab[]).map(t => (
+          {(['deposits', 'draws', 'users', 'partners', 'settings', 'ads', 'security'] as Tab[]).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ ...tabStyle(t), flexShrink: 0 }}>
               {t === 'deposits' ? '💰 Deposits'
                 : t === 'draws' ? '🏆 Draws'
                 : t === 'users' ? '👥 Users'
                 : t === 'partners' ? '🏢 Partners'
                 : t === 'settings' ? '⚙️ Settings'
+                : t === 'security' ? '🔒 Security'
                 : '📢 Ads'}
             </button>
           ))}
@@ -707,6 +741,139 @@ export default function AdminPage() {
               ))}
               <button type="submit" style={{ padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #9b20d8, #e8187a)', color: '#fff', fontWeight: 700 }}>Save Settings</button>
             </form>
+          </div>
+        )}
+
+        {/* SECURITY TAB — Admin 2FA Setup */}
+        {tab === 'security' && (
+          <div>
+            <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '6px', fontFamily: 'Poppins, sans-serif' }}>🔒 Security Settings</h3>
+            <p style={{ color: '#8888aa', fontSize: '13px', marginBottom: '20px' }}>Manage two-factor authentication for your admin account.</p>
+
+            {/* 2FA Card */}
+            <div style={{ background: '#100f28', borderRadius: '16px', border: '1px solid rgba(155,32,216,0.25)', padding: '24px', marginBottom: '16px', maxWidth: '460px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #9b20d8, #e8187a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>🔐</div>
+                <div>
+                  <p style={{ color: '#fff', fontWeight: 700, margin: 0, fontSize: '15px' }}>Authenticator App (TOTP)</p>
+                  <p style={{ color: '#8888aa', fontSize: '12px', margin: 0 }}>Google Authenticator / Authy compatible</p>
+                </div>
+                <div style={{ marginLeft: 'auto' }}>
+                  <span style={{
+                    padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                    background: totpEnabled ? 'rgba(34,197,94,0.15)' : 'rgba(240,165,0,0.15)',
+                    color: totpEnabled ? '#6ee7a0' : '#f0a500',
+                    border: `1px solid ${totpEnabled ? 'rgba(34,197,94,0.4)' : 'rgba(240,165,0,0.3)'}`,
+                  }}>
+                    {totpEnabled ? '✓ ENABLED' : 'NOT SET'}
+                  </span>
+                </div>
+              </div>
+
+              {totpStatus && (
+                <div style={{
+                  background: totpStatus.ok ? 'rgba(34,197,94,0.12)' : 'rgba(232,24,122,0.12)',
+                  border: `1px solid ${totpStatus.ok ? 'rgba(34,197,94,0.4)' : 'rgba(232,24,122,0.4)'}`,
+                  borderRadius: '8px', padding: '10px 12px', color: totpStatus.ok ? '#6ee7a0' : '#f88',
+                  fontSize: '13px', marginBottom: '16px',
+                }}>
+                  {totpStatus.text}
+                </div>
+              )}
+
+              {!totpQr && !totpEnabled && (
+                <div>
+                  <p style={{ color: '#aaa', fontSize: '13px', lineHeight: 1.7, marginBottom: '16px' }}>
+                    Enable 2FA to add an extra layer of security. After setup, you'll need your authenticator app every time you log in.
+                  </p>
+                  <button onClick={setupTotp} disabled={totpLoading} style={{
+                    padding: '12px 20px', borderRadius: '10px', border: 'none',
+                    cursor: totpLoading ? 'not-allowed' : 'pointer',
+                    background: totpLoading ? 'rgba(155,32,216,0.3)' : 'linear-gradient(90deg, #9b20d8, #e8187a)',
+                    color: '#fff', fontWeight: 700, fontSize: '14px', opacity: totpLoading ? 0.7 : 1,
+                  }}>
+                    {totpLoading ? 'Generating...' : '🚀 Setup 2FA Now'}
+                  </button>
+                </div>
+              )}
+
+              {totpQr && !totpEnabled && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ background: '#fff', borderRadius: '12px', padding: '12px', display: 'inline-flex', alignSelf: 'center' }}>
+                    <img
+                      src={`data:image/png;base64,${totpQr}`}
+                      alt="2FA QR Code"
+                      style={{ width: '180px', height: '180px', display: 'block' }}
+                    />
+                  </div>
+
+                  <div style={{ background: 'rgba(155,32,216,0.08)', border: '1px solid rgba(155,32,216,0.2)', borderRadius: '10px', padding: '12px' }}>
+                    <p style={{ color: '#aaa', fontSize: '12px', margin: '0 0 6px' }}>Manual entry key:</p>
+                    <p style={{ color: '#f0a500', fontSize: '13px', fontFamily: 'monospace', letterSpacing: '2px', margin: 0, wordBreak: 'break-all' }}>{totpSecret}</p>
+                  </div>
+
+                  <div style={{ background: 'rgba(240,165,0,0.08)', border: '1px solid rgba(240,165,0,0.25)', borderRadius: '10px', padding: '12px' }}>
+                    <p style={{ color: '#f0a500', fontSize: '12px', fontWeight: 600, margin: '0 0 4px' }}>📱 How to set up:</p>
+                    <ol style={{ color: '#aaa', fontSize: '12px', margin: 0, paddingLeft: '18px', lineHeight: 1.8 }}>
+                      <li>Open Google Authenticator or Authy</li>
+                      <li>Tap <strong>+</strong> → Scan QR code</li>
+                      <li>Enter the 6-digit code below to confirm</li>
+                    </ol>
+                  </div>
+
+                  <form onSubmit={enableTotp} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <label style={{ color: '#aaa', fontSize: '13px' }}>Enter 6-digit code from your app:</label>
+                    <input
+                      type="text" inputMode="numeric" maxLength={6}
+                      value={totpToken} onChange={e => setTotpToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      style={{ background: '#08071a', border: '1px solid rgba(155,32,216,0.4)', borderRadius: '10px', padding: '12px 16px', color: '#fff', fontSize: '22px', fontFamily: 'monospace', letterSpacing: '8px', outline: 'none', textAlign: 'center' }}
+                    />
+                    <button type="submit" disabled={totpLoading || totpToken.length < 6} style={{
+                      padding: '12px', borderRadius: '10px', border: 'none',
+                      cursor: (totpLoading || totpToken.length < 6) ? 'not-allowed' : 'pointer',
+                      background: (totpLoading || totpToken.length < 6) ? 'rgba(34,197,94,0.2)' : 'linear-gradient(90deg,#22c55e,#16a34a)',
+                      color: '#fff', fontWeight: 700, fontSize: '14px',
+                      opacity: (totpLoading || totpToken.length < 6) ? 0.6 : 1,
+                    }}>
+                      {totpLoading ? 'Verifying...' : '✓ Verify & Enable 2FA'}
+                    </button>
+                    <button type="button" onClick={() => { setTotpQr(null); setTotpSecret(null); setTotpToken(''); setTotpStatus(null) }}
+                      style={{ background: 'none', border: 'none', color: '#8888aa', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}>
+                      Cancel
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {totpEnabled && (
+                <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                  <div style={{ fontSize: '48px', marginBottom: '8px' }}>✅</div>
+                  <p style={{ color: '#6ee7a0', fontWeight: 600, margin: '0 0 4px' }}>2FA is Active</p>
+                  <p style={{ color: '#8888aa', fontSize: '12px', margin: 0 }}>Your account is protected with Google Authenticator.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Security Info Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '460px' }}>
+              {[
+                { icon: '🔑', title: 'Email OTP on Login', desc: 'Every admin login requires email verification. A 6-digit code is sent to your registered email.', active: true },
+                { icon: '📋', title: 'Activity Logging', desc: 'All admin actions are recorded with IP address and timestamp in the audit log.', active: true },
+                { icon: '⏱️', title: 'Rate Limiting', desc: 'Login locked for 15 minutes after 5 failed attempts.', active: true },
+              ].map(({ icon, title, desc, active }) => (
+                <div key={title} style={{ background: '#100f28', border: '1px solid rgba(155,32,216,0.15)', borderRadius: '12px', padding: '14px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '22px' }}>{icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <p style={{ color: '#fff', fontWeight: 600, margin: 0, fontSize: '13px' }}>{title}</p>
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: 'rgba(34,197,94,0.15)', color: '#6ee7a0', border: '1px solid rgba(34,197,94,0.3)' }}>Active</span>
+                    </div>
+                    <p style={{ color: '#8888aa', fontSize: '12px', margin: 0, lineHeight: 1.5 }}>{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
