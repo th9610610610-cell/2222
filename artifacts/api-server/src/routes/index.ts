@@ -10,6 +10,8 @@ import settingsRouter from './settings'
 import adsRouter from './ads'
 import winnerRouter from './winner'
 import businessCodesRouter from './business-codes'
+import withdrawalsRouter from './withdrawals'
+import totpRouter from './totp'
 
 const router = Router()
 
@@ -24,5 +26,7 @@ router.use('/settings', settingsRouter)
 router.use('/ads', adsRouter)
 router.use('/winner', winnerRouter)
 router.use('/business-codes', businessCodesRouter)
+router.use('/withdrawals', withdrawalsRouter)
+router.use('/totp', totpRouter)
 
 export default router
