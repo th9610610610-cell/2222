@@ -219,6 +219,41 @@ export async function runMigrations(connectionString: string): Promise<void> {
     await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_partner_buyer_discount_pct INTEGER NOT NULL DEFAULT 10`)
     await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_partner_referrer_reward_pct INTEGER NOT NULL DEFAULT 10`)
 
+    // Security: Email + OTP + Device tracking
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INTEGER NOT NULL DEFAULT 0`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS lockout_until TIMESTAMP`)
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email);
+      EXCEPTION WHEN duplicate_table THEN null; WHEN duplicate_object THEN null; END $$
+    `)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS otp_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT NOT NULL,
+        code TEXT NOT NULL,
+        type TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN NOT NULL DEFAULT false,
+        ip_address TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS otp_tokens_email_type_idx ON otp_tokens(email, type)`)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS known_devices (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        device_hash TEXT NOT NULL,
+        user_agent TEXT,
+        last_seen TIMESTAMP NOT NULL DEFAULT NOW(),
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS known_devices_user_id_idx ON known_devices(user_id)`)
+
     console.log('[migrate] All migrations applied successfully')
   } catch (err) {
     console.error('[migrate] Migration failed:', err)

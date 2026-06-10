@@ -1,0 +1,80 @@
+Lotto Win Security Checklist
+
+For User Security
+
+1. Register: Email + Password + Email OTP Verification
+2. Login: Email + Password
+3. New Device Login: Email OTP Verification
+4. Withdraw / Sensitive Actions: Email OTP + (Optional Phone OTP)
+5. Same Email Cannot Create Multiple Accounts
+6. Password Reset Only Through Email OTP
+7. Login Rate Limiting (e.g., temporary lock after multiple failed attempts)
+8. Strong Password Policy (minimum requirements for passwords)
+
+---
+
+For Backend & Infrastructure Security
+
+GitHub / Development Security
+
+1. Enable Branch Protection on Main Branch
+2. Require Pull Request Reviews (at least 1 approver)
+3. Add a LICENSE File
+4. Enable Dependabot Security Updates
+5. Create a SECURITY.md for Vulnerability Reporting
+6. Enable Secret Scanning in Repository Settings
+7. Audit the ".gitignore" File for Sensitive Files
+
+---
+
+Application & API Security
+
+8. Implement Rate Limiting for:
+   
+   - Login API
+   - Registration API
+   - Ticket Purchase API
+   - Withdraw Request API
+
+9. Input Validation on All User Inputs
+
+10. Security Headers (Helmet, CSP, HSTS, X-Frame-Options)
+
+11. Proper CORS Configuration (allow only trusted domains)
+
+---
+
+Database Security (Supabase)
+
+12. Enable Row Level Security (RLS)
+13. Keep "SUPABASE_SERVICE_ROLE_KEY" Backend Only
+14. Apply Least Privilege Access Principles
+15. Schedule Regular Database Backups
+
+---
+
+Admin Security
+
+16. Enable 2FA for Admin Accounts
+17. Maintain Admin Activity Logs
+18. Use Role-Based Access Control (e.g., Super Admin, Support Admin)
+19. Send Notifications for Suspicious Admin Login Activity
+
+---
+
+Business Logic Security (Lotto Win Specific)
+
+20. Validate All Withdraw Requests Server-Side
+21. Restrict Draw Creation and Result Management to Authorized Admins Only
+22. Prevent Duplicate or Invalid Ticket Purchases
+23. Maintain Immutable Transaction Logs
+24. Monitor and Detect Suspicious or Fraudulent Activity
+
+---
+
+Monitoring & Recovery
+
+25. Enable Error Logging and Monitoring
+26. Monitor Application Uptime
+27. Maintain Security Audit Logs
+28. Implement a Backup and Disaster Recovery Plan
