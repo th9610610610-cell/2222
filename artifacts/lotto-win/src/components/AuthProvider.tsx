@@ -34,6 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     const data = await res.json()
     if (!res.ok) return { error: data.error || 'Login failed' }
+
+    if (data.requireOtp) {
+      return { requireOtp: true, email: data.email as string }
+    }
+
     localStorage.setItem('lw_token', data.token)
     setToken(data.token)
     setUser(data.user)
