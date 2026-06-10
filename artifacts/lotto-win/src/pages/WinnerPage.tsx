@@ -14,127 +14,99 @@ interface WinnerTicket {
   created_at: string
 }
 
-const TICKET_COLORS = [
-  { bg: '#c8b98a', text: '#2a1800', accent: '#6b3a1f' },
-  { bg: '#1a2a4a', text: '#fff', accent: '#90caf9' },
-  { bg: '#c0392b', text: '#fff', accent: '#ffcdd2' },
-  { bg: '#1a7575', text: '#fff', accent: '#80deea' },
-  { bg: '#6a2fa0', text: '#fff', accent: '#e040fb' },
-  { bg: '#4a5c2a', text: '#fff', accent: '#c5e1a5' },
-  { bg: '#c9950a', text: '#2a1800', accent: '#4a3000' },
-  { bg: '#1a1a1a', text: '#d4af37', accent: '#ffd700' },
-]
-
-function ClassicTicket({
-  ticket, isWinner, canPick, picking, onPick, idx,
+function LottoTicket({
+  ticket, isWinner, canPick, picking, onPick,
 }: {
   ticket: WinnerTicket
   isWinner: boolean
   canPick: boolean
   picking: string | null
   onPick: (id: string) => void
-  idx: number
 }) {
-  const palette = isWinner
-    ? { bg: '#1a1200', text: '#ffd700', accent: '#ffd700' }
-    : TICKET_COLORS[idx % TICKET_COLORS.length]
+  const bg = isWinner ? '#ffd700' : '#d4b896'
+  const border = isWinner ? '#b8860b' : '#a0845a'
+  const textColor = isWinner ? '#3a2000' : '#3a2000'
 
   return (
     <div
       onClick={() => canPick && !picking && onPick(ticket.id)}
-      title={`TKT-${ticket.ticket_ref}${ticket.user_name ? ` · ${ticket.user_name}` : ''}`}
+      title={`TKT-${ticket.ticket_ref}`}
       style={{
         position: 'relative',
         cursor: canPick ? 'pointer' : 'default',
-        filter: isWinner
-          ? 'drop-shadow(0 0 6px rgba(212,175,55,0.7))'
-          : 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))',
+        height: '25px',
+        filter: isWinner ? 'drop-shadow(0 0 4px rgba(255,215,0,0.8))' : 'none',
         animation: isWinner ? 'winnerPulse 2s ease-in-out infinite' : 'none',
       }}
     >
-      {/* Ticket shape */}
+      {/* Ticket shape with notched edges */}
       <div style={{
+        position: 'absolute', inset: 0,
+        background: bg,
+        borderRadius: '4px',
+        border: `1.5px solid ${border}`,
         display: 'flex',
-        background: palette.bg,
-        borderRadius: '5px',
-        border: `1.5px solid ${palette.accent}55`,
+        alignItems: 'center',
         overflow: 'hidden',
-        height: '52px',
-        position: 'relative',
       }}>
-        {/* Wavy perforated left edge */}
+        {/* Notch left */}
         <div style={{
-          width: '6px', flexShrink: 0,
-          background: `repeating-linear-gradient(to bottom, ${palette.accent}44 0, ${palette.accent}44 3px, transparent 3px, transparent 6px)`,
-          borderRight: `1px dashed ${palette.accent}55`,
+          position: 'absolute', left: '-5px', top: '50%', transform: 'translateY(-50%)',
+          width: '10px', height: '10px', borderRadius: '50%',
+          background: '#08071a', border: `1px solid ${border}`,
+          zIndex: 2, flexShrink: 0,
+        }} />
+        {/* Notch right */}
+        <div style={{
+          position: 'absolute', right: '-5px', top: '50%', transform: 'translateY(-50%)',
+          width: '10px', height: '10px', borderRadius: '50%',
+          background: '#08071a', border: `1px solid ${border}`,
+          zIndex: 2, flexShrink: 0,
         }} />
 
-        {/* Main body */}
+        {/* Inner dashed border */}
         <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '3px 4px',
-          position: 'relative',
+          position: 'absolute', inset: '2px',
+          border: `1px dashed ${border}66`,
+          borderRadius: '3px',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Main text area */}
+        <div style={{
+          flex: 1, paddingLeft: '8px', paddingRight: '4px',
+          display: 'flex', alignItems: 'center',
         }}>
-          {/* Inner frame */}
-          <div style={{
-            position: 'absolute', inset: '3px',
-            border: `1px solid ${palette.accent}33`,
-            borderRadius: '3px',
-            pointerEvents: 'none',
-          }} />
-
-          {isWinner && (
-            <span style={{ position: 'absolute', top: '2px', left: '50%', transform: 'translateX(-50%)', color: palette.accent, fontSize: '8px' }}>♛</span>
-          )}
-
           <span style={{
             fontFamily: 'Arial Black, sans-serif',
-            fontWeight: 900,
-            fontSize: '9px',
-            color: palette.text,
-            letterSpacing: '0.5px',
-            textAlign: 'center',
-            lineHeight: 1.2,
-            zIndex: 1,
-            paddingTop: isWinner ? '8px' : '0',
+            fontWeight: 900, fontSize: '10px',
+            color: textColor, letterSpacing: '0.3px',
+            whiteSpace: 'nowrap', overflow: 'hidden',
           }}>
             TKT-{ticket.ticket_ref}
           </span>
-          {ticket.user_name && (
-            <span style={{
-              fontSize: '6px', color: palette.text, opacity: 0.55,
-              fontFamily: 'Poppins, sans-serif', letterSpacing: '0.2px',
-              overflow: 'hidden', maxWidth: '100%', textAlign: 'center',
-              whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-            }}>
-              {ticket.user_name.toUpperCase().slice(0, 8)}
-            </span>
-          )}
         </div>
 
-        {/* Perforated divider */}
+        {/* Perforated separator */}
         <div style={{
-          width: '1.5px',
-          background: `repeating-linear-gradient(to bottom, ${palette.text}55 0, ${palette.text}55 3px, transparent 3px, transparent 6px)`,
-          flexShrink: 0,
+          width: '1.5px', height: '100%', flexShrink: 0,
+          background: `repeating-linear-gradient(to bottom, ${border}99 0, ${border}99 3px, transparent 3px, transparent 6px)`,
         }} />
 
         {/* Barcode stub */}
         <div style={{
-          width: '18px', flexShrink: 0,
-          background: `${palette.bg}cc`,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '4px 2px',
+          width: '20px', flexShrink: 0, height: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          paddingRight: '3px',
         }}>
-          <svg width="10" height="36" viewBox="0 0 10 36">
-            {[0,1,2,3,4,5,6,7,8,9].map(i => (
-              <rect key={i} x={i} y={i % 3 === 0 ? 0 : 2} width={i % 4 === 0 ? 2 : 1} height={i % 3 === 0 ? 36 : 32}
-                fill={palette.text} opacity={0.5 + (i % 3) * 0.15} />
+          <svg width="12" height="18" viewBox="0 0 12 18">
+            {[0,1,2,3,4,5,6,7,8,9,10].map(i => (
+              <rect key={i}
+                x={i * 1.1} y={i % 3 === 0 ? 0 : 1}
+                width={i % 4 === 0 ? 1.2 : 0.7}
+                height={i % 3 === 0 ? 18 : 16}
+                fill={textColor} opacity={0.6 + (i % 3) * 0.12}
+              />
             ))}
           </svg>
         </div>
@@ -143,10 +115,10 @@ function ClassicTicket({
       {/* Loading overlay */}
       {picking === ticket.id && (
         <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)',
-          borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
+          borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ width: '14px', height: '14px', border: '2px solid #f0a500', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+          <div style={{ width: '10px', height: '10px', border: '1.5px solid #f0a500', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
         </div>
       )}
     </div>
@@ -229,8 +201,8 @@ export default function WinnerPage() {
     <div style={{ minHeight: '100vh', background: '#08071a', padding: '0 0 40px' }}>
       <style>{`
         @keyframes winnerPulse {
-          0%, 100% { filter: drop-shadow(0 0 6px rgba(212,175,55,0.5)); }
-          50% { filter: drop-shadow(0 0 18px rgba(212,175,55,0.9)); }
+          0%, 100% { filter: drop-shadow(0 0 4px rgba(255,215,0,0.6)); }
+          50% { filter: drop-shadow(0 0 12px rgba(255,215,0,1)); }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
@@ -320,7 +292,7 @@ export default function WinnerPage() {
               </div>
             )}
 
-            {/* Tickets Grid — 6 per row */}
+            {/* Tickets Grid — 5 per row, compact lotto style */}
             {selectedDraw && (
               ticketsLoading ? (
                 <p style={{ color: '#8888aa', textAlign: 'center', padding: '30px 0' }}>Loading tickets...</p>
@@ -331,19 +303,23 @@ export default function WinnerPage() {
                 </div>
               ) : (
                 <>
-                  <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif', marginBottom: '10px', textAlign: 'center' }}>
+                  <p style={{ color: '#8888aa', fontSize: '12px', fontFamily: 'Poppins, sans-serif', marginBottom: '8px', textAlign: 'center' }}>
                     {tickets.length} tickets · shuffled for fairness
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '5px' }}>
-                    {tickets.map((ticket, idx) => (
-                      <ClassicTicket
+                  <div style={{
+                    width: '90vw', margin: '0 auto',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(5, 1fr)',
+                    gap: '4px',
+                  }}>
+                    {tickets.map((ticket) => (
+                      <LottoTicket
                         key={ticket.id}
                         ticket={ticket}
                         isWinner={ticket.is_winner}
                         canPick={!!(adminToken && selectedDraw.status === 'live' && !selectedDraw.winner_name)}
                         picking={picking}
                         onPick={pickWinner}
-                        idx={idx}
                       />
                     ))}
                   </div>

@@ -10,16 +10,6 @@ import QRCode from 'react-qr-code'
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
-function formatTicketId(ref: string) { return `TKT-${ref}` }
-
-function formatDrawId(draw?: Ticket['draw']) {
-  if (!draw) return 'N/A'
-  const raw = draw.draw_number
-    ? String(draw.draw_number).padStart(3, '0')
-    : draw.id.replace(/-/g, '').slice(0, 6).toUpperCase()
-  return `DID-${raw}`
-}
-
 function fmtDate(dateStr: string) {
   const d = new Date(dateStr)
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(2)}`
@@ -29,8 +19,25 @@ function fmtTime(dateStr: string) {
   const m = String(d.getMinutes()).padStart(2,'0'); const ap = h>=12?'PM':'AM'; h = h%12||12
   return `${h}:${m} ${ap}`
 }
+function ticketId(ref: string) { return `ID-${ref}` }
+function drawId(draw?: Ticket['draw']) {
+  if (!draw) return 'N/A'
+  const raw = draw.draw_number
+    ? String(draw.draw_number).padStart(3,'0')
+    : draw.id.replace(/-/g,'').slice(0,6).toUpperCase()
+  return `ID-${raw}`
+}
 
-function TicketModal({ ticket: initialTicket, userName, token, onClose }: { ticket: Ticket; userName: string; token: string | null; onClose: () => void }) {
+const ROW_ITEMS = [
+  { icon: '🎫', label: 'TK', getValue: (t: Ticket) => ticketId(t.ticket_ref) },
+  { icon: '💰', label: 'DR', getValue: (t: Ticket) => drawId(t.draw) },
+  { icon: '⏳', label: 'TM', getValue: (t: Ticket) => t.created_at ? fmtTime(t.created_at) : 'N/A' },
+  { icon: '🗓️', label: 'DT', getValue: (t: Ticket) => t.created_at ? fmtDate(t.created_at) : 'N/A' },
+]
+
+function TicketModal({ ticket: initialTicket, userName, token, onClose }: {
+  ticket: Ticket; userName: string; token: string | null; onClose: () => void
+}) {
   const [ticket, setTicket] = useState<Ticket>(initialTicket)
 
   useEffect(() => {
@@ -44,17 +51,8 @@ function TicketModal({ ticket: initialTicket, userName, token, onClose }: { tick
       .catch(() => {})
   }, [token, initialTicket.id])
 
-  const qrData = [
-    `TKT:${ticket.ticket_ref}`,
-    `DRAW:${ticket.draw?.name || 'N/A'}`,
-    `USER:${userName.toUpperCase()}`,
-    `STATUS:${ticket.draw?.status?.toUpperCase() || 'N/A'}`,
-    `PURCHASED:${ticket.created_at ? fmtDate(ticket.created_at) : 'N/A'}`,
-    `DRAW_ID:${formatDrawId(ticket.draw)}`,
-    ticket.is_winner ? 'WINNER:YES' : 'WINNER:NO',
-  ].join('|')
-
-  const statusColor = ticket.draw?.status === 'live' ? '#16a34a' : ticket.draw?.status === 'ended' ? '#dc2626' : '#2563eb'
+  const statusColor = ticket.draw?.status === 'live' ? '#16a34a'
+    : ticket.draw?.status === 'ended' ? '#dc2626' : '#2563eb'
   const stripBg = ticket.draw?.status === 'live'
     ? 'linear-gradient(90deg,#16a34a,#22c55e)'
     : ticket.draw?.status === 'ended'
@@ -62,61 +60,69 @@ function TicketModal({ ticket: initialTicket, userName, token, onClose }: { tick
       : 'linear-gradient(90deg,#2563eb,#3b82f6)'
 
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.78)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={onClose}>
-      <div style={{ background:'#f0f2f8', borderRadius:'20px', width:'100%', maxWidth:'386px', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }} onClick={e=>e.stopPropagation()}>
-
-        {/* Status strip — no real-time clock, just status */}
+    <div
+      style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.78)', backdropFilter:'blur(4px)', display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
+      onClick={onClose}
+    >
+      <div
+        style={{ width:'90%', borderRadius:'16px', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.5)', background:'#f0f2f8' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Status strip */}
         <div style={{ background: stripBg, padding:'5px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <span style={{ color:'#fff', fontSize:'11px', fontWeight:700, fontFamily:'Poppins, sans-serif', letterSpacing:'0.5px' }}>
             {ticket.is_winner ? '🏆 WINNING TICKET' : `● ${(ticket.draw?.status || 'N/A').toUpperCase()}`}
           </span>
           <span style={{ color:'rgba(255,255,255,0.85)', fontSize:'10px', fontFamily:'Poppins, sans-serif', fontWeight:600 }}>
-            {ticket.created_at ? `Bought ${fmtDate(ticket.created_at)} · ${fmtTime(ticket.created_at)}` : ''}
+            {ticket.created_at ? `${fmtDate(ticket.created_at)} · ${fmtTime(ticket.created_at)}` : ''}
           </span>
         </div>
 
-        <div style={{ display:'flex', padding:'14px', gap:'18px', alignItems:'flex-start' }}>
-          <div style={{ background:'#fff', borderRadius:'12px', padding:'10px', boxShadow:'0 2px 8px rgba(0,0,0,0.1)', flexShrink:0 }}>
-            <QRCode value={qrData} size={110} level="M" />
+        {/* Card body — 148px total height (strip adds ~26px so inner is ~122px) */}
+        <div style={{ height:'148px', display:'flex', padding:'16px', gap:'16px', alignItems:'stretch', boxSizing:'border-box' }}>
+          {/* QR Code 88×88 */}
+          <div style={{ flexShrink:0, display:'flex', alignItems:'center' }}>
+            <div style={{ background:'#fff', borderRadius:'10px', padding:'6px', boxShadow:'0 2px 8px rgba(0,0,0,0.1)' }}>
+              <QRCode
+                value={[
+                  `TKT:${ticket.ticket_ref}`,
+                  `DRAW:${ticket.draw?.name || 'N/A'}`,
+                  `USER:${userName.toUpperCase()}`,
+                  ticket.is_winner ? 'WINNER:YES' : 'WINNER:NO',
+                ].join('|')}
+                size={88}
+                level="M"
+              />
+            </div>
           </div>
-          <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'11px', paddingTop:'4px' }}>
-            {/* Ticket ID */}
-            <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-              <span style={{ fontSize:'15px', width:'20px' }}>🎫</span>
-              <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>TKT:</span>
-              <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right', letterSpacing:'1px' }}>{formatTicketId(ticket.ticket_ref)}</span>
-            </div>
-            {/* Draw ID */}
-            <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-              <span style={{ fontSize:'15px', width:'20px' }}>🏷️</span>
-              <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>DID:</span>
-              <span style={{ color:'#dc2626', fontSize:'12px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right', letterSpacing:'0.5px' }}>{formatDrawId(ticket.draw)}</span>
-            </div>
-            {/* Purchase Date */}
-            <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-              <span style={{ fontSize:'15px', width:'20px' }}>📅</span>
-              <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>DATE:</span>
-              <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto' }}>{ticket.created_at ? fmtDate(ticket.created_at) : 'N/A'}</span>
-            </div>
-            {/* Purchase Time */}
-            <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-              <span style={{ fontSize:'15px', width:'20px' }}>🕐</span>
-              <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>TIME:</span>
-              <span style={{ color:'#2563eb', fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto' }}>{ticket.created_at ? fmtTime(ticket.created_at) : 'N/A'}</span>
-            </div>
-            {/* Draw Status */}
-            <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-              <span style={{ fontSize:'15px', width:'20px' }}>📊</span>
-              <span style={{ color:'#555', fontSize:'12px', fontWeight:600, fontFamily:'Poppins, sans-serif', minWidth:'28px' }}>ST:</span>
-              <span style={{ color: statusColor, fontSize:'13px', fontWeight:700, fontFamily:'Poppins, sans-serif', marginLeft:'auto' }}>{(ticket.draw?.status || 'N/A').toUpperCase()}</span>
-            </div>
+
+          {/* Info rows */}
+          <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'8px', justifyContent:'center' }}>
+            {ROW_ITEMS.map(({ icon, label, getValue }) => (
+              <div key={label} style={{
+                height:'34px', borderRadius:'10px', padding:'0 10px',
+                background:'rgba(0,0,0,0.06)',
+                display:'flex', alignItems:'center', gap:'8px', flexShrink:0,
+              }}>
+                <span style={{ fontSize:'20px', width:'20px', height:'20px', lineHeight:'20px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{icon}</span>
+                <span style={{ fontSize:'14px', fontWeight:600, color:'#444', fontFamily:'Poppins, sans-serif', minWidth:'24px' }}>{label}:</span>
+                <span style={{
+                  fontSize:'15px', fontWeight:700, color: label === 'TK' ? '#2563eb' : label === 'DR' ? '#dc2626' : '#1a1a2e',
+                  fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right',
+                  letterSpacing: (label === 'TK' || label === 'DR') ? '0.5px' : 0,
+                }}>
+                  {getValue(ticket)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
-        <div style={{ height:'1px', background:'#d8dce8', margin:'0 16px' }} />
-        <div style={{ background:'#e8ecf5', padding:'11px 20px', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}>
-          <span style={{ width:'8px', height:'8px', borderRadius:'50%', background:'#22c55e', display:'inline-block', flexShrink:0 }} />
+
+        {/* Footer */}
+        <div style={{ background:'#e8ecf5', padding:'9px 20px', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}>
+          <span style={{ width:'7px', height:'7px', borderRadius:'50%', background: statusColor, display:'inline-block', flexShrink:0 }} />
           <span style={{ color:'#333', fontSize:'11px', fontWeight:700, fontFamily:'Poppins, sans-serif', letterSpacing:'0.5px', textAlign:'center' }}>
-            USER: {userName.toUpperCase()} | VERIFIED BY BLOCKCHAIN ✅
+            USER: {userName.toUpperCase()} | VERIFIED ✅
           </span>
         </div>
       </div>
@@ -135,7 +141,7 @@ export default function MyTicketsPage() {
   useEffect(() => {
     if (!token) { navigate('/login'); return }
     fetch(`${BASE}/api/tickets`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { setTickets(d.tickets || []) }).catch(() => {}).finally(() => setLoading(false))
+      .then(r => r.json()).then(d => setTickets(d.tickets || [])).catch(() => {}).finally(() => setLoading(false))
   }, [token])
 
   const winners = tickets.filter(t => t.is_winner)
@@ -156,7 +162,7 @@ export default function MyTicketsPage() {
       )}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
         <span style={{ fontFamily:'monospace', color:'#f0a500', fontWeight:700, fontSize:'15px', letterSpacing:'3px' }}>
-          {formatTicketId(ticket.ticket_ref)}
+          TKT-{ticket.ticket_ref}
         </span>
         <span style={{ fontSize:'12px', color:'#8888aa', fontFamily:'Poppins,sans-serif' }}>{formatDate(ticket.created_at)}</span>
       </div>
