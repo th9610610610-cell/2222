@@ -1,0 +1,39 @@
+name: Uptime Monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-health:
+    name: Check API & Frontend Health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check API health endpoint
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+            https://lotto-win-hc6kukaz8-prime-recruiting-agencies-s-projects.vercel.app/api/health)
+          echo "API Status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::API health check failed with status $STATUS"
+            exit 1
+          fi
+          echo "✅ API is healthy"
+
+      - name: Check Frontend availability
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+            https://lotto-win-hc6kukaz8-prime-recruiting-agencies-s-projects.vercel.app)
+          echo "Frontend Status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Frontend health check failed with status $STATUS"
+            exit 1
+          fi
+          echo "✅ Frontend is healthy"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "⚠️ Lotto Win is DOWN. Check Vercel dashboard immediately."
+          echo "Timestamp: $(date -u)"
