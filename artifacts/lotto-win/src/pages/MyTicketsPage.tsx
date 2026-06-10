@@ -95,19 +95,19 @@ function TicketModal({ ticket: initialTicket, userName, token, onClose }: {
           </div>
 
           {/* Info rows */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'6px', justifyContent:'center' }}>
+          <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'4px', justifyContent:'center' }}>
             {ROW_ITEMS.map(({ icon, label, getValue }) => (
               <div key={label} style={{
-                height:'30px', borderRadius:'10px', padding:'0 10px',
+                height:'25px', borderRadius:'8px', padding:'0 8px',
                 background:'rgba(0,0,0,0.06)',
-                display:'flex', alignItems:'center', gap:'6px', flexShrink:0,
+                display:'flex', alignItems:'center', gap:'5px', flexShrink:0,
               }}>
-                <span style={{ fontSize:'16px', width:'18px', height:'18px', lineHeight:'18px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{icon}</span>
-                <span style={{ fontSize:'13px', fontWeight:600, color:'#444', fontFamily:'Poppins, sans-serif', minWidth:'22px' }}>{label}:</span>
+                <span style={{ fontSize:'12px', width:'14px', height:'14px', lineHeight:'14px', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{icon}</span>
+                <span style={{ fontSize:'10px', fontWeight:600, color:'#444', fontFamily:'Poppins, sans-serif', minWidth:'18px' }}>{label}:</span>
                 <span style={{
-                  fontSize:'13px', fontWeight:700, color: label === 'TK' ? '#2563eb' : label === 'DR' ? '#dc2626' : '#1a1a2e',
+                  fontSize:'10px', fontWeight:700, color: label === 'TK' ? '#2563eb' : label === 'DR' ? '#dc2626' : '#1a1a2e',
                   fontFamily:'Poppins, sans-serif', marginLeft:'auto', textAlign:'right',
-                  letterSpacing: (label === 'TK' || label === 'DR') ? '0.4px' : 0,
+                  letterSpacing: (label === 'TK' || label === 'DR') ? '0.3px' : 0,
                 }}>
                   {getValue(ticket)}
                 </span>
