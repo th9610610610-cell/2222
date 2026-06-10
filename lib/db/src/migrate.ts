@@ -183,6 +183,73 @@ export async function runMigrations(connectionString: string): Promise<void> {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_bonus_pct INTEGER NOT NULL DEFAULT 0`)
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_bonus_expires TIMESTAMP`)
 
+    // Feature: Email, OTP login, account security
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`)
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users(email) WHERE email IS NOT NULL`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT false`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0`)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP`)
+
+    // Feature: Withdrawals table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS withdrawals (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        amount INTEGER NOT NULL,
+        method payment_method NOT NULL,
+        account_number TEXT NOT NULL,
+        status deposit_status NOT NULL DEFAULT 'pending',
+        rejection_reason TEXT,
+        otp_verified BOOLEAN NOT NULL DEFAULT false,
+        processed_by UUID,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+
+    // Feature: Admin audit logs
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        admin_id UUID NOT NULL REFERENCES users(id),
+        action TEXT NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id TEXT,
+        detail TEXT,
+        ip TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+
+    // Feature: Login audit logs
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS login_audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id),
+        ip TEXT NOT NULL,
+        user_agent TEXT NOT NULL DEFAULT '',
+        success BOOLEAN NOT NULL,
+        reason TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+
+    // Feature: Business codes
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS business_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code TEXT NOT NULL UNIQUE,
+        discount_pct INTEGER NOT NULL DEFAULT 50,
+        usage_limit INTEGER NOT NULL DEFAULT 100,
+        usage_count INTEGER NOT NULL DEFAULT 0,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        description TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+
     console.log('[migrate] All migrations applied successfully')
   } catch (err) {
     console.error('[migrate] Migration failed:', err)
