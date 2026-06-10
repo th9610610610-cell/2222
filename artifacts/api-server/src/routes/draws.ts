@@ -2,6 +2,11 @@ import { Router } from 'express'
 import { db, drawsTable, ticketsTable, usersTable, notificationsTable } from '@workspace/db'
 import { eq, desc, and, lt } from 'drizzle-orm'
 import { requireAuth, requireAdmin, AuthRequest } from '../middlewares/auth'
+import { writeAudit } from '../utils/audit'
+
+function getIP(req: any): string {
+  return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown'
+}
 
 const router = Router()
 
@@ -32,9 +37,10 @@ router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
       background_type: background_type || 'natural',
       background_image_url: background_image_url || '',
     }).returning()
+    await writeAudit({ actor_id: req.user?.id, actor_role: req.user?.role, action: 'draw.create', target_type: 'draw', target_id: draw.id, detail: `name=${name} jackpot=${jackpot}`, ip_address: getIP(req) })
     res.status(201).json({ draw })
   } catch (err: any) {
-    res.status(500).json({ error: err.message })
+    res.status(500).json({ error: 'Failed to create draw' })
   }
 })
 
@@ -104,10 +110,13 @@ router.patch('/:id', requireAuth, requireAdmin, async (req: AuthRequest, res) =>
       }
     }
 
+    if (status && prevDraw && prevDraw.status !== status) {
+      await writeAudit({ actor_id: req.user?.id, actor_role: req.user?.role, action: 'draw.status_change', target_type: 'draw', target_id: req.params['id'], detail: `${prevDraw.status}→${status}`, ip_address: getIP(req) })
+    }
     res.json({ draw })
   } catch (err: any) {
     console.error('[draws] PATCH error:', err)
-    res.status(500).json({ error: err.message })
+    res.status(500).json({ error: 'Failed to update draw' })
   }
 })
 
@@ -161,10 +170,11 @@ router.post('/:id/select-winner', requireAuth, requireAdmin, async (req: AuthReq
       }
     }
 
+    await writeAudit({ actor_id: req.user?.id, actor_role: req.user?.role, action: 'draw.select_winner', target_type: 'draw', target_id: req.params['id'] as string, detail: `winner_ticket=${winner.ticket_ref} winner_user=${winner.user_id}`, ip_address: getIP(req) })
     res.json({ draw, winner })
   } catch (e: any) {
     console.error('[draws] select-winner error:', e)
-    res.status(500).json({ error: e.message })
+    res.status(500).json({ error: 'Failed to select winner' })
   }
 })
 

@@ -162,6 +162,18 @@ export const notificationsRelations = relations(notificationsTable, ({ one }) =>
   user: one(usersTable, { fields: [notificationsTable.user_id], references: [usersTable.id] }),
 }))
 
+export const auditLogsTable = pgTable('audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  actor_id: uuid('actor_id'),
+  actor_role: text('actor_role'),
+  action: text('action').notNull(),
+  target_type: text('target_type'),
+  target_id: text('target_id'),
+  detail: text('detail'),
+  ip_address: text('ip_address'),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+})
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, created_at: true })
 export const insertDrawSchema = createInsertSchema(drawsTable).omit({ id: true, created_at: true })
 export const insertDepositSchema = createInsertSchema(depositsTable).omit({ id: true, created_at: true })

@@ -1,10 +1,12 @@
 import { Router } from 'express'
 import { db, ticketsTable, drawsTable, usersTable, notificationsTable } from '@workspace/db'
 import { businessCodesTable, settingsTable } from '@workspace/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, count } from 'drizzle-orm'
 import { requireAuth, AuthRequest } from '../middlewares/auth'
 
 const router = Router()
+
+const MAX_TICKETS_PER_USER_PER_DRAW = 50
 
 const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'
 
@@ -55,6 +57,21 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     return res.status(400).json({ error: 'This draw has ended — ticket purchase is closed' })
   }
 
+  // Business logic: block flagged users from purchasing
+  if (req.user!.is_flagged) {
+    return res.status(403).json({ error: 'Your account has been flagged. Contact support to resolve.' })
+  }
+
+  // Business logic: per-user per-draw ticket limit
+  const [existingCount] = await db
+    .select({ n: count() })
+    .from(ticketsTable)
+    .where(and(eq(ticketsTable.draw_id, draw_id), eq(ticketsTable.user_id, req.user!.id)))
+  const alreadyOwned = Number(existingCount?.n ?? 0)
+  if (alreadyOwned + qty > MAX_TICKETS_PER_USER_PER_DRAW) {
+    return res.status(400).json({ error: `You can only hold ${MAX_TICKETS_PER_USER_PER_DRAW} tickets per draw. You already have ${alreadyOwned}.` })
+  }
+
   const [buyer] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.id))
   if (!buyer) return res.status(404).json({ error: 'User not found' })
 
@@ -67,7 +84,6 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
   const now = new Date()
 
-  // Priority 1: Active referral bonus (auto-applied)
   const hasActiveBonus = buyer.referral_bonus_pct > 0 &&
     buyer.referral_bonus_expires != null &&
     new Date(buyer.referral_bonus_expires) > now
@@ -78,8 +94,6 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
   } else if (coupon_code?.trim()) {
     const code = coupon_code.trim().toUpperCase()
     const [settings] = await db.select().from(settingsTable)
-
-    // Priority 2: Try business code
     const [bc] = await db.select().from(businessCodesTable).where(eq(businessCodesTable.code, code))
     if (bc) {
       if (!bc.is_active) return res.status(400).json({ error: 'Coupon code is inactive' })
@@ -89,7 +103,6 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       discountType = 'business'
       businessCodeId = bc.id
     } else if (settings?.user_partner_code_enabled) {
-      // Priority 3: Try user partner code
       const [codeOwner] = await db.select().from(usersTable).where(eq(usersTable.partner_code, code))
       if (codeOwner) {
         if (codeOwner.id === buyer.id) return res.status(400).json({ error: 'You cannot use your own partner code' })
@@ -113,56 +126,56 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
   if (buyer.balance < safeCost) return res.status(400).json({ error: 'Insufficient balance' })
 
+  // Generate all ticket refs before the transaction
   const ticketValues: { ticket_ref: string; draw_id: string; user_id: string; claim_code: string }[] = []
   for (let i = 0; i < qty; i++) {
     const ref = await uniqueTicketRef(draw_id)
     ticketValues.push({ ticket_ref: ref, draw_id, user_id: req.user!.id, claim_code: generateClaimCode() })
   }
 
-  const tickets = await db.insert(ticketsTable).values(ticketValues).returning()
+  // Wrap purchase in a transaction for atomicity
+  let tickets: typeof ticketValues = []
+  await db.transaction(async (tx) => {
+    // Re-verify balance inside transaction
+    const [freshBuyer] = await tx.select({ balance: usersTable.balance }).from(usersTable).where(eq(usersTable.id, req.user!.id))
+    if (!freshBuyer || freshBuyer.balance < safeCost) throw new Error('Insufficient balance')
 
-  // Deduct from buyer
-  await db.update(usersTable).set({
-    balance: buyer.balance - safeCost,
-    tickets_bought: buyer.tickets_bought + qty,
-    ...(hasActiveBonus ? { referral_bonus_pct: 0, referral_bonus_expires: null } : {}),
-  }).where(eq(usersTable.id, req.user!.id))
+    tickets = await tx.insert(ticketsTable).values(ticketValues).returning() as any
 
-  await db.update(drawsTable).set({ tickets_sold: draw.tickets_sold + qty }).where(eq(drawsTable.id, draw_id))
+    await tx.update(usersTable).set({
+      balance: freshBuyer.balance - safeCost,
+      tickets_bought: buyer.tickets_bought + qty,
+      ...(hasActiveBonus ? { referral_bonus_pct: 0, referral_bonus_expires: null } : {}),
+    }).where(eq(usersTable.id, req.user!.id))
 
-  // Increment business code usage
-  if (businessCodeId) {
-    const [bc] = await db.select().from(businessCodesTable).where(eq(businessCodesTable.id, businessCodeId))
-    if (bc) await db.update(businessCodesTable).set({ usage_count: bc.usage_count + qty }).where(eq(businessCodesTable.id, businessCodeId))
-  }
+    await tx.update(drawsTable).set({ tickets_sold: draw.tickets_sold + qty }).where(eq(drawsTable.id, draw_id))
 
-  // Give user partner code owner their reward
+    if (businessCodeId) {
+      const [bc] = await tx.select().from(businessCodesTable).where(eq(businessCodesTable.id, businessCodeId))
+      if (bc) await tx.update(businessCodesTable).set({ usage_count: bc.usage_count + qty }).where(eq(businessCodesTable.id, businessCodeId))
+    }
+  })
+
+  // Post-transaction: notifications + partner reward (non-critical, outside tx)
   if (userPartnerReferrer && userPartnerReferrerRewardPct > 0) {
     const referrerBonus = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
     await db.update(usersTable).set({
       referral_bonus_pct: userPartnerReferrerRewardPct,
       referral_bonus_expires: referrerBonus,
-    }).where(eq(usersTable.id, userPartnerReferrer.id))
-
+    }).where(eq(usersTable.id, userPartnerReferrer.id)).catch(() => {})
     await db.insert(notificationsTable).values({
       user_id: userPartnerReferrer.id,
       message: `🎁 ${buyer.full_name} used your partner code! You've earned ${userPartnerReferrerRewardPct}% discount on your next ticket. Valid for 7 days! 🎟️`,
-    })
+    }).catch(() => {})
   }
 
-  // Notify buyer
   const discountNote = discountPct > 0 ? ` (${discountPct}% discount applied)` : ''
   await db.insert(notificationsTable).values({
     user_id: req.user!.id,
     message: `🎟️ Purchase Successful! You bought ${qty} ticket${qty > 1 ? 's' : ''} for "${draw.name}" — Total: ৳${safeCost}${discountNote}. Good luck! 🍀`,
-  })
+  }).catch(() => {})
 
-  res.status(201).json({
-    tickets,
-    discount_applied: discountPct,
-    discount_type: discountType,
-    total_cost: safeCost,
-  })
+  res.status(201).json({ tickets, discount_applied: discountPct, discount_type: discountType, total_cost: safeCost })
 })
 
 export default router

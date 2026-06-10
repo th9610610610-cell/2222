@@ -254,6 +254,24 @@ export async function runMigrations(connectionString: string): Promise<void> {
     `)
     await client.query(`CREATE INDEX IF NOT EXISTS known_devices_user_id_idx ON known_devices(user_id)`)
 
+    // Security: Audit log table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        actor_id UUID,
+        actor_role TEXT,
+        action TEXT NOT NULL,
+        target_type TEXT,
+        target_id TEXT,
+        detail TEXT,
+        ip_address TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`CREATE INDEX IF NOT EXISTS audit_logs_actor_id_idx ON audit_logs(actor_id)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs(action)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs(created_at DESC)`)
+
     console.log('[migrate] All migrations applied successfully')
   } catch (err) {
     console.error('[migrate] Migration failed:', err)
