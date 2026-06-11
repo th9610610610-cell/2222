@@ -15,10 +15,7 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [
-      path.resolve(artifactDir, "src/index.ts"),     // local dev server (calls app.listen)
-      path.resolve(artifactDir, "src/handler.ts"),   // Vercel serverless handler (exports app)
-    ],
+    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -52,6 +49,7 @@ async function buildAll() {
       "pg-native",
       "oracledb",
       "mongodb-client-encryption",
+      "nodemailer",
       "handlebars",
       "knex",
       "typeorm",

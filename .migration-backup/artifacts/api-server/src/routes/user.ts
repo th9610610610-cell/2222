@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { db, usersTable, notificationsTable } from '@workspace/db'
 import { eq, desc } from 'drizzle-orm'
 import { requireAuth, AuthRequest } from '../middlewares/auth'
+import bcrypt from 'bcryptjs'
 
 const router = Router()
 
@@ -17,9 +18,20 @@ router.get('/me', requireAuth, async (req: AuthRequest, res) => {
 })
 
 router.patch('/me', requireAuth, async (req: AuthRequest, res) => {
-  const { full_name } = req.body
+  const { full_name, phone, new_password, current_password } = req.body
   const updates: Record<string, any> = {}
   if (full_name) updates.full_name = full_name
+  if (phone) updates.phone = phone
+
+  if (new_password) {
+    if (!current_password) return res.status(400).json({ error: 'Current password is required' })
+    const [existing] = await db.select({ password_hash: usersTable.password_hash })
+      .from(usersTable).where(eq(usersTable.id, req.user!.id))
+    const valid = await bcrypt.compare(current_password, existing.password_hash)
+    if (!valid) return res.status(400).json({ error: 'Current password is incorrect' })
+    updates.password_hash = await bcrypt.hash(new_password, 10)
+  }
+
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.user!.id)).returning({
     id: usersTable.id, full_name: usersTable.full_name, phone: usersTable.phone, role: usersTable.role, balance: usersTable.balance,
   })

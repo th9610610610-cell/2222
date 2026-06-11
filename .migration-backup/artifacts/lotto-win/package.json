@@ -74,5 +74,7 @@
     "wouter": "^3.3.5",
     "zod": "catalog:"
   },
-  "dependencies": {}
+  "dependencies": {
+    "react-qr-code": "^2.0.21"
+  }
 }

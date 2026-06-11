@@ -47,22 +47,3 @@ Thumbs.db
 # Replit
 .cache/
 .local/
-
-# Environment & secrets — NEVER commit these
-.env
-.env.*
-.env.local
-.env.production
-.env.development
-*.pem
-*.key
-*.p12
-*.pfx
-
-# Build artifacts
-artifacts/*/dist
-artifacts/*/.vercel
-
-# Logs
-*.log
-logs/

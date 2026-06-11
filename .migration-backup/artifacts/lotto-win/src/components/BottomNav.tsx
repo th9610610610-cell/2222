@@ -6,51 +6,103 @@ export default function BottomNav() {
   const items = [
     {
       label: 'Home', path: '/',
-      icon: <svg width="20" height="20" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/></svg>
+      activeColor: '#f0a500',
+      icon: (active: boolean) => (
+        <div style={{
+          width: '38px', height: '38px', borderRadius: '12px',
+          background: active ? 'rgba(240,165,0,0.18)' : 'rgba(255,255,255,0.06)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12L12 4L21 12V20H15V15H9V20H3V12Z"
+              stroke={active ? '#f0a500' : '#8888cc'}
+              strokeWidth="2" strokeLinejoin="round"
+              fill={active ? 'rgba(240,165,0,0.2)' : 'none'} />
+          </svg>
+        </div>
+      ),
     },
     {
       label: 'Draws', path: '/draws',
-      icon: <svg width="20" height="20" viewBox="0 0 24 24"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94A5.01 5.01 0 0011 15.9V18H9v2h6v-2h-2v-2.1a5.01 5.01 0 003.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zM5 8V7h2v3.82C5.84 10.4 5 9.3 5 8zm14 0c0 1.3-.84 2.4-2 2.82V7h2v1z" fill="currentColor"/></svg>
+      activeColor: '#9b20d8',
+      icon: (active: boolean) => (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
+          <rect x="14" y="3" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
+          <rect x="3" y="14" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
+          <rect x="14" y="14" width="7" height="7" rx="2" stroke={active ? '#9b20d8' : '#7777bb'} strokeWidth="2"/>
+        </svg>
+      ),
     },
     {
       label: 'Tickets', path: '/my-tickets',
-      icon: <svg width="20" height="20" viewBox="0 0 24 24"><path d="M20 12c0-1.1.9-2 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2zm-2 5.5H6v-11h12v11z" fill="currentColor"/></svg>
+      activeColor: '#22d3ee',
+      icon: (active: boolean) => (
+        <svg width="28" height="28" viewBox="0 0 32 20" fill="none">
+          <rect x="1" y="1" width="30" height="18" rx="3" stroke={active ? '#22d3ee' : '#5599bb'} strokeWidth="2"/>
+          <circle cx="1" cy="10" r="3" fill="#13112e" stroke={active ? '#22d3ee' : '#5599bb'} strokeWidth="1.5"/>
+          <circle cx="31" cy="10" r="3" fill="#13112e" stroke={active ? '#22d3ee' : '#5599bb'} strokeWidth="1.5"/>
+          <line x1="12" y1="1" x2="12" y2="19" stroke={active ? '#22d3ee' : '#5599bb'} strokeWidth="1.5" strokeDasharray="3 2"/>
+          <line x1="20" y1="1" x2="20" y2="19" stroke={active ? '#22d3ee' : '#5599bb'} strokeWidth="1.5" strokeDasharray="3 2"/>
+          <path d="M15 7L17 10L15 13M17 7L15 10L17 13" stroke={active ? '#22d3ee' : '#5599bb'} strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
+      ),
     },
     {
       label: 'Wallet', path: '/wallet',
-      icon: <svg width="20" height="20" viewBox="0 0 24 24"><path d="M21 18v1a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1h-9a2 2 0 00-2 2v8a2 2 0 002 2h9zm-9-2h10V8H12v8zm4-2.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" fill="currentColor"/></svg>
+      activeColor: '#2dd4bf',
+      icon: (active: boolean) => (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="5" width="20" height="15" rx="3" stroke={active ? '#2dd4bf' : '#449988'} strokeWidth="2"/>
+          <path d="M2 10H22" stroke={active ? '#2dd4bf' : '#449988'} strokeWidth="2"/>
+          <rect x="15" y="13" width="4" height="3" rx="1.5" fill={active ? '#2dd4bf' : '#449988'}/>
+        </svg>
+      ),
     },
     {
       label: 'Profile', path: '/profile',
-      icon: <svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" fill="currentColor"/></svg>
+      activeColor: '#f472b6',
+      icon: (active: boolean) => (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="8" r="4" stroke={active ? '#f472b6' : '#bb6688'} strokeWidth="2"/>
+          <path d="M4 20C4 17 7.6 15 12 15C16.4 15 20 17 20 20" stroke={active ? '#f472b6' : '#bb6688'} strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      ),
     },
   ]
 
   return (
     <div style={{
-      position: 'fixed', bottom: 0, width: '390px',
-      background: '#0e0c24',
-      borderTop: '1px solid rgba(100,50,200,0.25)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-around',
-      padding: '9px 0 20px', zIndex: 100,
+      position: 'fixed', bottom: 10, left: '50%', transform: 'translateX(-50%)',
+      width: '390px', maxWidth: 'calc(100vw - 20px)',
+      background: 'linear-gradient(135deg, #16143a 0%, #0f0d2a 100%)',
+      borderRadius: '22px',
+      border: '1px solid rgba(120,80,220,0.35)',
+      boxShadow: '0 4px 28px rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+      padding: '10px 4px 12px', zIndex: 100,
     }}>
       {items.map(item => {
         const active = pathname === item.path
         return (
           <div key={item.path} onClick={() => navigate(item.path)} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            gap: '4px', flex: 1, cursor: 'pointer', position: 'relative', paddingTop: '2px',
+            gap: '5px', flex: 1, cursor: 'pointer', position: 'relative',
           }}>
             {active && (
               <div style={{
-                position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+                position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)',
                 width: '28px', height: '3px',
-                background: 'linear-gradient(90deg, #f0a500, #e8187a)',
+                background: item.activeColor,
                 borderRadius: '0 0 4px 4px',
               }} />
             )}
-            <span style={{ color: active ? '#f0a500' : '#6060a0' }}>{item.icon}</span>
-            <span style={{ fontSize: '11px', fontWeight: 500, color: active ? '#f0a500' : '#6060a0' }}>{item.label}</span>
+            {item.icon(active)}
+            <span style={{
+              fontSize: '11px', fontWeight: 600,
+              color: active ? item.activeColor : '#7777aa',
+              fontFamily: 'Poppins, sans-serif',
+            }}>{item.label}</span>
           </div>
         )
       })}

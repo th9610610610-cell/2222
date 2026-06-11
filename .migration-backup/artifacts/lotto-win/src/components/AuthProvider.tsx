@@ -2,7 +2,8 @@ import { useState, useEffect, ReactNode } from 'react'
 import { AuthContext } from '../lib/auth'
 import { User } from '../types'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -33,6 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     const data = await res.json()
     if (!res.ok) return { error: data.error || 'Login failed' }
+
+    if (data.requireOtp) {
+      return { requireOtp: true, email: data.email as string }
+    }
+
     localStorage.setItem('lw_token', data.token)
     setToken(data.token)
     setUser(data.user)

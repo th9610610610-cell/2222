@@ -28,12 +28,19 @@ localPort = 8081
 externalPort = 8081
 
 [[ports]]
+localPort = 8082
+externalPort = 3000
+
+[[ports]]
 localPort = 19713
 externalPort = 80
+
+[nix]
+channel = "stable-25_05"
 
 [userenv]
 
 [userenv.shared]
-
-[nix]
-channel = "stable-25_05"
+JWT_SECRET = "70d98cdcb0ea2ca98a37c012f9b10d615040f5bea170904cf6e2f863305ec436"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = "587"

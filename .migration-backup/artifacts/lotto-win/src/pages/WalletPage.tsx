@@ -6,7 +6,8 @@ import BottomNav from '../components/BottomNav'
 import { Deposit } from '../types'
 import { formatCurrency, formatDate } from '../lib/utils'
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, '')
+import { API_BASE } from '../lib/apiBase'
+const BASE = API_BASE
 
 export default function WalletPage() {
   const [, navigate] = useLocation()
@@ -17,7 +18,7 @@ export default function WalletPage() {
   useEffect(() => {
     if (!token) { navigate('/login'); return }
     fetch(`${BASE}/api/deposits`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { setDeposits(d.deposits || []); setLoading(false) })
+      .then(r => r.json()).then(d => { setDeposits(d.deposits || []) }).catch(() => {}).finally(() => setLoading(false))
   }, [token])
 
   const statusColor = (s: string) => s === 'approved' ? '#4f4' : s === 'rejected' ? '#f88' : '#f0a500'

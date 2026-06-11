@@ -1,6 +1,5 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { runMigrations } from "@workspace/db/migrate";
 
 const rawPort = process.env["PORT"];
 
@@ -16,20 +15,11 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-async function start() {
-  try {
-    await runMigrations(process.env.DATABASE_URL!);
-  } catch (err) {
-    logger.warn({ err }, "Migration warning (may be safe to ignore on first run)");
+app.listen(port, (err) => {
+  if (err) {
+    logger.error({ err }, "Error listening on port");
+    process.exit(1);
   }
 
-  app.listen(port, (err) => {
-    if (err) {
-      logger.error({ err }, "Error listening on port");
-      process.exit(1);
-    }
-    logger.info({ port }, "Server listening");
-  });
-}
-
-start();
+  logger.info({ port }, "Server listening");
+});

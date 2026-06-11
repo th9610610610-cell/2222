@@ -10,13 +10,18 @@ export interface User {
   total_won: number
   tickets_bought: number
   is_flagged: boolean
+  referral_bonus_pct: number
+  referral_bonus_expires: string | null
   created_at: string
 }
 
-export type DrawStatus = 'upcoming' | 'live' | 'ended'
+export type DrawStatus = 'upcoming' | 'live' | 'ended' | 'rescheduled'
+
+export type DrawBackgroundType = 'natural' | 'custom' | 'picture'
 
 export interface Draw {
   id: string
+  draw_number: number | null
   name: string
   jackpot: number
   ticket_price: number
@@ -27,6 +32,8 @@ export interface Draw {
   winner_id: string | null
   winner_name: string | null
   winner_ticket: string | null
+  background_type: DrawBackgroundType
+  background_image_url: string
   created_at: string
 }
 
@@ -35,6 +42,7 @@ export interface Ticket {
   ticket_ref: string
   draw_id: string
   user_id: string
+  claim_code: string
   is_winner: boolean
   created_at: string
   draw?: Draw
@@ -63,6 +71,7 @@ export interface Notification {
   user_id: string
   message: string
   is_read: boolean
+  is_pinned: boolean
   created_at: string
 }
 
@@ -70,4 +79,20 @@ export interface Settings {
   bkash_number: string
   nagad_number: string
   rocket_number: string
+  whatsapp_number: string
+  payment_number: string
+  announcement: string
+}
+
+export type AdType = 'text' | 'image' | 'video'
+
+export interface Ad {
+  id: string
+  type: AdType
+  title: string
+  content: string
+  link_url: string
+  is_active: boolean
+  display_order: number
+  created_at: string
 }
