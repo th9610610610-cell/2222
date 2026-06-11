@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'wouter'
 import { useAuth } from '../lib/auth'
 
@@ -10,6 +10,18 @@ import { formatCurrency, formatJackpot, getTimeLeft } from '../lib/utils'
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
+type CouponStatus = 'idle' | 'checking' | 'valid' | 'invalid'
+
+interface CouponState {
+  status: CouponStatus
+  discount_pct: number
+  type: 'business' | 'user_partner' | null
+  error: string | null
+  message: string | null
+}
+
+const emptyCoupon = (): CouponState => ({ status: 'idle', discount_pct: 0, type: null, error: null, message: null })
+
 export default function DrawsPage() {
   const [, navigate] = useLocation()
   const { user, token, refresh } = useAuth()
@@ -17,12 +29,12 @@ export default function DrawsPage() {
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
   const [qty, setQty] = useState<Record<string, number>>({})
-  const [referralPhone, setReferralPhone] = useState<Record<string, string>>({})
-  const [businessCode, setBusinessCode] = useState<Record<string, string>>({})
-  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
-  const [btnResult, setBtnResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
+  const [couponCode, setCouponCode] = useState<Record<string, string>>({})
+  const [couponState, setCouponState] = useState<Record<string, CouponState>>({})
+  const [drawResult, setDrawResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
-  const hasActiveBonus = user?.referral_bonus_pct > 0 &&
+  const hasActiveBonus = (user?.referral_bonus_pct ?? 0) > 0 &&
     user?.referral_bonus_expires != null &&
     new Date(user.referral_bonus_expires) > new Date()
 
@@ -38,37 +50,93 @@ export default function DrawsPage() {
       .catch(() => setLoading(false))
   }
 
+  const handleCouponChange = (drawId: string, value: string) => {
+    const code = value.toUpperCase()
+    setCouponCode(p => ({ ...p, [drawId]: code }))
+
+    if (!code.trim()) {
+      setCouponState(p => ({ ...p, [drawId]: emptyCoupon() }))
+      clearTimeout(debounceTimers.current[drawId])
+      return
+    }
+
+    setCouponState(p => ({ ...p, [drawId]: { status: 'checking', discount_pct: 0, type: null, error: null, message: null } }))
+    clearTimeout(debounceTimers.current[drawId])
+    debounceTimers.current[drawId] = setTimeout(() => validateCoupon(drawId, code), 600)
+  }
+
+  const validateCoupon = async (drawId: string, code: string) => {
+    try {
+      const res = await fetch(`${BASE}/api/coupons/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code }),
+      })
+      const data = await res.json()
+      if (res.ok && data.valid) {
+        setCouponState(p => ({
+          ...p,
+          [drawId]: { status: 'valid', discount_pct: data.discount_pct, type: data.type, error: null, message: data.message },
+        }))
+      } else {
+        setCouponState(p => ({
+          ...p,
+          [drawId]: { status: 'invalid', discount_pct: 0, type: null, error: data.error || 'Invalid code', message: null },
+        }))
+      }
+    } catch {
+      setCouponState(p => ({
+        ...p,
+        [drawId]: { status: 'invalid', discount_pct: 0, type: null, error: 'Validation failed', message: null },
+      }))
+    }
+  }
+
+  const getEffectiveDiscount = (drawId: string): number => {
+    if (hasActiveBonus) return user?.referral_bonus_pct ?? 0
+    return couponState[drawId]?.discount_pct ?? 0
+  }
+
+  const canBuy = (drawId: string): boolean => {
+    if (buying === drawId) return false
+    const cs = couponState[drawId]
+    const code = couponCode[drawId]?.trim()
+    if (!code) return true
+    return cs?.status === 'valid'
+  }
+
   const buyTicket = async (draw: Draw) => {
+    if (!canBuy(draw.id)) return
     const quantity = qty[draw.id] || 1
-    const phone = referralPhone[draw.id]?.trim() || ''
-    const bcode = businessCode[draw.id]?.trim() || ''
+    const code = couponCode[draw.id]?.trim() || ''
     setBuying(draw.id)
-    setMsg(null)
+    setDrawResult(p => ({ ...p, [draw.id]: null }))
+
     const res = await fetch(`${BASE}/api/tickets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         draw_id: draw.id,
         quantity,
-        referral_phone: phone || undefined,
-        business_code: bcode || undefined,
+        ...(code ? { coupon_code: code } : {}),
       }),
     })
     const data = await res.json()
     setBuying(null)
+
     if (!res.ok) {
-      setBtnResult(r => ({ ...r, [draw.id]: { ok: false, text: '❌ ' + (data.error || 'Failed') } }))
-      setTimeout(() => setBtnResult(r => ({ ...r, [draw.id]: null })), 3000)
+      setDrawResult(p => ({ ...p, [draw.id]: { ok: false, text: '❌ ' + (data.error || 'Purchase failed') } }))
+      setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 5000)
       return
     }
-    const discountNote = data.discount_applied > 0 ? ` (${data.discount_applied}% off)` : ''
-    setBtnResult(r => ({ ...r, [draw.id]: { ok: true, text: `✅ Bought!${discountNote}` } }))
-    setTimeout(() => setBtnResult(r => ({ ...r, [draw.id]: null })), 3000)
-    setMsg({ type: 'ok', text: `🎉 ${quantity} ticket(s) purchased! Total: ${formatCurrency(data.total_cost)}${data.discount_applied > 0 ? ` (${data.discount_applied}% discount applied!)` : ''}` })
-    setReferralPhone(prev => ({ ...prev, [draw.id]: '' }))
-    setBusinessCode(prev => ({ ...prev, [draw.id]: '' }))
+
+    const discountNote = data.discount_applied > 0 ? ` · ${data.discount_applied}% discount!` : ''
+    setDrawResult(p => ({ ...p, [draw.id]: { ok: true, text: `✅ Bought ${quantity} ticket${quantity > 1 ? 's' : ''}! Total: ${formatCurrency(data.total_cost)}${discountNote}` } }))
+    setCouponCode(p => ({ ...p, [draw.id]: '' }))
+    setCouponState(p => ({ ...p, [draw.id]: emptyCoupon() }))
     load()
     refresh()
+    setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 6000)
   }
 
   const statusColor = (s: string) => {
@@ -77,7 +145,11 @@ export default function DrawsPage() {
     if (s === 'rescheduled') return '#f0a500'
     return '#8888aa'
   }
-  const cardStyle: React.CSSProperties = { background: '#100f28', borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)', padding: '12px 15px', marginBottom: '14px' }
+
+  const cardStyle: React.CSSProperties = {
+    background: '#100f28', borderRadius: '16px',
+    border: '1px solid rgba(155,32,216,0.2)', padding: '12px 15px', marginBottom: '14px',
+  }
 
   return (
     <div className="app">
@@ -85,30 +157,50 @@ export default function DrawsPage() {
       <div style={{ padding: '18px 15px 100px' }}>
         <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 800, color: '#fff', marginBottom: '18px' }}>🏆 All Draws</h2>
 
+        {/* My Partner Code */}
+        {user?.partner_code && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(155,32,216,0.15), rgba(232,24,122,0.08))',
+            border: '1.5px solid rgba(155,32,216,0.35)', borderRadius: '14px',
+            padding: '12px 16px', marginBottom: '16px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div>
+              <p style={{ color: '#9b20d8', fontFamily: 'Poppins, sans-serif', fontSize: '11px', fontWeight: 700, marginBottom: '4px' }}>🎟️ MY PARTNER CODE</p>
+              <p style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 800, fontSize: '20px', letterSpacing: '3px' }}>{user.partner_code}</p>
+              <p style={{ color: '#8888aa', fontSize: '11px', marginTop: '2px' }}>Share this code — friends get a discount, you earn rewards!</p>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(user.partner_code!)
+                  .then(() => alert('Partner code copied!'))
+                  .catch(() => {})
+              }}
+              style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(155,32,216,0.2)', color: '#9b20d8', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}
+            >
+              📋 Copy
+            </button>
+          </div>
+        )}
+
         {/* Active Referral Bonus Banner */}
         {hasActiveBonus && (
           <div style={{
             background: 'linear-gradient(135deg, rgba(240,165,0,0.15), rgba(232,24,122,0.1))',
-            border: '1.5px solid rgba(240,165,0,0.5)',
-            borderRadius: '14px', padding: '14px 16px', marginBottom: '18px',
+            border: '1.5px solid rgba(240,165,0,0.5)', borderRadius: '14px',
+            padding: '14px 16px', marginBottom: '18px',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}>
             <span style={{ fontSize: '28px', flexShrink: 0 }}>🎁</span>
             <div>
               <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, color: '#f0a500', fontSize: '15px', marginBottom: '2px' }}>
-                Referral Bonus Active! {user.referral_bonus_pct}% Off
+                Partner Reward Active! {user.referral_bonus_pct}% Off
               </p>
               <p style={{ color: '#ccc', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
-                Your next ticket purchase will get {user.referral_bonus_pct}% discount automatically.
+                Your next ticket gets {user.referral_bonus_pct}% discount automatically.
                 Expires: {new Date(user.referral_bonus_expires!).toLocaleDateString('en-GB')}
               </p>
             </div>
-          </div>
-        )}
-
-        {msg && (
-          <div style={{ background: msg.type === 'ok' ? 'rgba(80,200,80,0.15)' : 'rgba(232,24,122,0.15)', border: `1px solid ${msg.type === 'ok' ? 'rgba(80,200,80,0.4)' : 'rgba(232,24,122,0.4)'}`, borderRadius: '10px', padding: '12px', color: msg.type === 'ok' ? '#4f4' : '#f88', fontSize: '14px', marginBottom: '16px' }}>
-            {msg.text}
           </div>
         )}
 
@@ -116,132 +208,166 @@ export default function DrawsPage() {
           <p style={{ color: '#8888aa', textAlign: 'center', marginTop: '40px' }}>Loading draws...</p>
         ) : draws.length === 0 ? (
           <p style={{ color: '#8888aa', textAlign: 'center', marginTop: '40px' }}>No draws available right now.</p>
-        ) : draws.map(draw => (
-          <div key={draw.id} style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div>
-                <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '16px', marginBottom: '6px' }}>{draw.name}</h3>
-                <span style={{ background: `rgba(0,0,0,0.25)`, color: statusColor(draw.status), borderRadius: '20px', padding: '3px 12px', fontSize: '12px', fontWeight: 700, border: `1px solid ${statusColor(draw.status)}44` }}>
-                  {draw.status === 'rescheduled' ? '🔄 RESCHEDULED' : draw.status.toUpperCase()}
-                </span>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ color: '#f0a500', fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 800 }}>{formatJackpot(draw.jackpot)}</p>
-                <p style={{ color: '#8888aa', fontSize: '12px' }}>Jackpot</p>
-              </div>
-            </div>
+        ) : draws.map(draw => {
+          const cs = couponState[draw.id]
+          const effectiveDiscount = getEffectiveDiscount(draw.id)
+          const discountedPrice = effectiveDiscount > 0
+            ? Math.ceil(draw.ticket_price * (1 - effectiveDiscount / 100))
+            : draw.ticket_price
+          const totalPrice = discountedPrice * (qty[draw.id] || 1)
+          const code = couponCode[draw.id] || ''
+          const buyDisabled = !canBuy(draw.id)
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
-              {[
-                { label: 'Ticket Price', value: hasActiveBonus ? (
-                  <span>
-                    <span style={{ textDecoration: 'line-through', color: '#8888aa', fontSize: '12px' }}>{formatCurrency(draw.ticket_price)}</span>
-                    {' '}<span style={{ color: '#f0a500', fontWeight: 800 }}>{formatCurrency(Math.ceil(draw.ticket_price * 0.5))}</span>
-                  </span>
-                ) : formatCurrency(draw.ticket_price) },
-                { label: 'Time Left', value: getTimeLeft(draw.end_date) },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '10px', padding: '10px' }}>
-                  <p style={{ color: '#8888aa', fontSize: '11px', marginBottom: '3px' }}>{label}</p>
-                  <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {draw.status === 'ended' && draw.winner_name && (
-              <div style={{ background: 'rgba(240,165,0,0.1)', borderRadius: '10px', padding: '12px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '22px' }}>🏆</span>
+          return (
+            <div key={draw.id} style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                 <div>
-                  <p style={{ color: '#f0a500', fontWeight: 700, fontSize: '14px' }}>Winner: {draw.winner_name}</p>
-                  <p style={{ color: '#8888aa', fontSize: '12px' }}>Ticket: {draw.winner_ticket}</p>
+                  <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '16px', marginBottom: '6px' }}>{draw.name}</h3>
+                  <span style={{ background: 'rgba(0,0,0,0.25)', color: statusColor(draw.status), borderRadius: '20px', padding: '3px 12px', fontSize: '12px', fontWeight: 700, border: `1px solid ${statusColor(draw.status)}44` }}>
+                    {draw.status === 'rescheduled' ? '🔄 RESCHEDULED' : draw.status.toUpperCase()}
+                  </span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ color: '#f0a500', fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 800 }}>{formatJackpot(draw.jackpot)}</p>
+                  <p style={{ color: '#8888aa', fontSize: '12px' }}>Jackpot</p>
                 </div>
               </div>
-            )}
 
-            {draw.status === 'rescheduled' && (
-              <div style={{ background: 'rgba(240,165,0,0.08)', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px' }}>
-                <p style={{ color: '#f0a500', fontSize: '13px', fontWeight: 600 }}>🔄 This draw has been rescheduled. New date will be announced soon.</p>
-              </div>
-            )}
-
-            {draw.status === 'live' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {/* Quantity + Buy row */}
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', border: '1px solid rgba(155,32,216,0.4)', borderRadius: '10px', overflow: 'hidden' }}>
-                    <button onClick={() => setQty(q => ({ ...q, [draw.id]: Math.max(1, (q[draw.id] || 1) - 1) }))} style={{ padding: '10px 14px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}>−</button>
-                    <span style={{ color: '#fff', padding: '0 8px', fontSize: '15px', fontWeight: 600 }}>{qty[draw.id] || 1}</span>
-                    <button onClick={() => setQty(q => ({ ...q, [draw.id]: Math.min(20, (q[draw.id] || 1) + 1) }))} style={{ padding: '10px 14px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}>+</button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+                {[
+                  {
+                    label: 'Ticket Price', value: effectiveDiscount > 0 ? (
+                      <span>
+                        <span style={{ textDecoration: 'line-through', color: '#8888aa', fontSize: '12px' }}>{formatCurrency(draw.ticket_price)}</span>
+                        {' '}<span style={{ color: '#f0a500', fontWeight: 800 }}>{formatCurrency(discountedPrice)}</span>
+                      </span>
+                    ) : formatCurrency(draw.ticket_price),
+                  },
+                  { label: 'Time Left', value: getTimeLeft(draw.end_date) },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '10px', padding: '10px' }}>
+                    <p style={{ color: '#8888aa', fontSize: '11px', marginBottom: '3px' }}>{label}</p>
+                    <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{value}</p>
                   </div>
-                  <button
-                    onClick={() => !btnResult[draw.id] && buyTicket(draw)}
-                    disabled={buying === draw.id}
-                    style={{
-                      flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
-                      cursor: buying === draw.id ? 'not-allowed' : 'pointer',
-                      background: btnResult[draw.id]
-                        ? (btnResult[draw.id]!.ok ? 'linear-gradient(90deg, #22c55e, #16a34a)' : 'linear-gradient(90deg, #e8187a, #c01460)')
-                        : 'linear-gradient(90deg, #f0a500, #e8187a)',
-                      color: '#fff', fontWeight: 700, fontSize: '14px',
-                      opacity: buying === draw.id ? 0.7 : 1,
-                      transition: 'background 0.3s',
-                    }}
-                  >
-                    {buying === draw.id
-                      ? 'Buying...'
-                      : btnResult[draw.id]
-                        ? btnResult[draw.id]!.text
-                        : `Buy · ${formatCurrency(
-                            hasActiveBonus
-                              ? Math.ceil(draw.ticket_price * 0.5) * (qty[draw.id] || 1)
-                              : draw.ticket_price * (qty[draw.id] || 1)
-                          )}`
-                    }
-                  </button>
+                ))}
+              </div>
+
+              {draw.status === 'ended' && draw.winner_name && (
+                <div style={{ background: 'rgba(240,165,0,0.1)', borderRadius: '10px', padding: '12px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '22px' }}>🏆</span>
+                  <div>
+                    <p style={{ color: '#f0a500', fontWeight: 700, fontSize: '14px' }}>Winner: {draw.winner_name}</p>
+                    <p style={{ color: '#8888aa', fontSize: '12px' }}>Ticket: {draw.winner_ticket}</p>
+                  </div>
                 </div>
+              )}
 
-                {/* Promo codes row (only if no active bonus) */}
-                {!hasActiveBonus && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {/* Business Partner Code */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(240,165,0,0.2)' }}>
-                      <span style={{ fontSize: '16px', flexShrink: 0 }}>🏢</span>
-                      <input
-                        type="text"
-                        value={businessCode[draw.id] || ''}
-                        onChange={e => setBusinessCode(p => ({ ...p, [draw.id]: e.target.value.toUpperCase() }))}
-                        placeholder="Partner Code (e.g. PROMO2025)"
-                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}
-                      />
-                    </div>
-                    {businessCode[draw.id]?.trim() && (
-                      <p style={{ color: '#f0a500', fontSize: '11px', marginTop: '-4px', fontFamily: 'Poppins, sans-serif', paddingLeft: '4px' }}>
-                        Partner code will be validated at checkout.
-                      </p>
-                    )}
+              {draw.status === 'rescheduled' && (
+                <div style={{ background: 'rgba(240,165,0,0.08)', borderRadius: '10px', padding: '10px 14px', marginBottom: '12px' }}>
+                  <p style={{ color: '#f0a500', fontSize: '13px', fontWeight: 600 }}>🔄 This draw has been rescheduled. New date will be announced soon.</p>
+                </div>
+              )}
 
-                    {/* Referral Phone */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(155,32,216,0.2)' }}>
-                      <span style={{ fontSize: '16px', flexShrink: 0 }}>🎁</span>
-                      <input
-                        type="tel"
-                        value={referralPhone[draw.id] || ''}
-                        onChange={e => setReferralPhone(p => ({ ...p, [draw.id]: e.target.value }))}
-                        placeholder="Referral phone (optional — get 50% off)"
-                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '13px', fontFamily: 'Poppins, sans-serif' }}
-                      />
+              {draw.status === 'live' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                  {/* Coupon Code Input (only if no active bonus) */}
+                  {!hasActiveBonus && (
+                    <div>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        background: 'rgba(0,0,0,0.25)', borderRadius: '10px', padding: '10px 14px',
+                        border: `1px solid ${
+                          cs?.status === 'valid' ? 'rgba(80,200,80,0.5)'
+                          : cs?.status === 'invalid' ? 'rgba(232,24,122,0.5)'
+                          : cs?.status === 'checking' ? 'rgba(240,165,0,0.4)'
+                          : 'rgba(155,32,216,0.2)'
+                        }`,
+                        transition: 'border-color 0.3s',
+                      }}>
+                        <span style={{ fontSize: '16px', flexShrink: 0 }}>🏷️</span>
+                        <input
+                          type="text"
+                          value={code}
+                          onChange={e => handleCouponChange(draw.id, e.target.value)}
+                          placeholder="Enter coupon code (optional)"
+                          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '13px', fontFamily: 'Poppins, sans-serif', letterSpacing: code ? '1px' : 0 }}
+                        />
+                        {cs?.status === 'checking' && (
+                          <span style={{ color: '#f0a500', fontSize: '12px', flexShrink: 0 }}>Checking...</span>
+                        )}
+                        {cs?.status === 'valid' && (
+                          <span style={{ color: '#4f4', fontSize: '16px', flexShrink: 0 }}>✓</span>
+                        )}
+                        {cs?.status === 'invalid' && (
+                          <span style={{ color: '#e8187a', fontSize: '16px', flexShrink: 0 }}>✗</span>
+                        )}
+                      </div>
+                      {/* Validation feedback */}
+                      {cs?.status === 'valid' && cs.message && (
+                        <p style={{ color: '#4f4', fontSize: '11px', marginTop: '5px', paddingLeft: '4px', fontFamily: 'Poppins, sans-serif' }}>
+                          🎉 {cs.message}
+                        </p>
+                      )}
+                      {cs?.status === 'invalid' && cs.error && (
+                        <p style={{ color: '#e8187a', fontSize: '11px', marginTop: '5px', paddingLeft: '4px', fontFamily: 'Poppins, sans-serif' }}>
+                          ⚠️ {cs.error}
+                        </p>
+                      )}
                     </div>
-                    {referralPhone[draw.id]?.trim() && (
-                      <p style={{ color: '#f0a500', fontSize: '11px', marginTop: '-4px', fontFamily: 'Poppins, sans-serif', paddingLeft: '4px' }}>
-                        50% discount will apply — referrer also earns 50% off their next ticket!
-                      </p>
-                    )}
+                  )}
+
+                  {/* Quantity + Buy row */}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid rgba(155,32,216,0.4)', borderRadius: '10px', overflow: 'hidden' }}>
+                      <button onClick={() => setQty(q => ({ ...q, [draw.id]: Math.max(1, (q[draw.id] || 1) - 1) }))} style={{ padding: '10px 14px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}>−</button>
+                      <span style={{ color: '#fff', padding: '0 8px', fontSize: '15px', fontWeight: 600 }}>{qty[draw.id] || 1}</span>
+                      <button onClick={() => setQty(q => ({ ...q, [draw.id]: Math.min(20, (q[draw.id] || 1) + 1) }))} style={{ padding: '10px 14px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}>+</button>
+                    </div>
+                    <button
+                      onClick={() => !buyDisabled && buyTicket(draw)}
+                      disabled={buyDisabled}
+                      style={{
+                        flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
+                        cursor: buyDisabled ? 'not-allowed' : 'pointer',
+                        background: buyDisabled
+                          ? 'rgba(136,136,170,0.2)'
+                          : effectiveDiscount > 0
+                            ? 'linear-gradient(90deg, #22c55e, #16a34a)'
+                            : 'linear-gradient(90deg, #f0a500, #e8187a)',
+                        color: buyDisabled ? '#8888aa' : '#fff',
+                        fontWeight: 700, fontSize: '14px',
+                        opacity: buying === draw.id ? 0.7 : 1,
+                        transition: 'all 0.3s',
+                      }}
+                    >
+                      {buying === draw.id
+                        ? 'Processing...'
+                        : buyDisabled && code
+                          ? cs?.status === 'checking' ? '⏳ Verifying code...' : '🚫 Invalid Code'
+                          : `Buy · ${formatCurrency(totalPrice)}`
+                          + (effectiveDiscount > 0 ? ` (${effectiveDiscount}% off)` : '')
+                      }
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+
+                  {/* Inline result — appears below the buy button */}
+                  {drawResult[draw.id] && (
+                    <div style={{
+                      borderRadius: '10px', padding: '11px 14px',
+                      background: drawResult[draw.id]!.ok ? 'rgba(80,200,80,0.12)' : 'rgba(232,24,122,0.12)',
+                      border: `1px solid ${drawResult[draw.id]!.ok ? 'rgba(80,200,80,0.4)' : 'rgba(232,24,122,0.4)'}`,
+                      color: drawResult[draw.id]!.ok ? '#4ade80' : '#f88',
+                      fontSize: '13px', fontFamily: 'Poppins, sans-serif', fontWeight: 600,
+                    }}>
+                      {drawResult[draw.id]!.text}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
       <BottomNav />
     </div>
