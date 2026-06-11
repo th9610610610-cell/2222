@@ -53,11 +53,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow no-origin requests (server-to-server, curl) in development only
-    if (!origin) {
-      if (process.env.NODE_ENV !== 'production') return callback(null, true)
-      return callback(new Error('No origin'), false)
-    }
+    // Allow no-origin requests (server-to-server, curl, health checks)
+    if (!origin) return callback(null, true)
     if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       return callback(null, true)
     }
