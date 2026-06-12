@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Application } from "express";
 import cors from "cors";
 import helmetLib from "helmet";
 import rateLimitLib from "express-rate-limit";
@@ -14,7 +14,7 @@ const rateLimit: any = (rateLimitLib as any).default ?? rateLimitLib;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const pinoHttp: any = (pinoHttpLib as any).default ?? pinoHttpLib;
 
-const app: Express = express();
+const app: Application = express();
 
 // Trust proxy (needed when behind Vercel/nginx for correct IPs)
 app.set('trust proxy', 1);
@@ -53,8 +53,11 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow no-origin requests (server-to-server, curl, health checks)
-    if (!origin) return callback(null, true)
+    // Allow no-origin requests (server-to-server, curl) in development only
+    if (!origin) {
+      if (process.env.NODE_ENV !== 'production') return callback(null, true)
+      return callback(new Error('No origin'), false)
+    }
     if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       return callback(null, true)
     }
