@@ -1,10 +1,7 @@
 {
   "version": 3,
   "routes": [
-    {
-      "src": "^/api(/.*)?$",
-      "dest": "/api/index"
-    },
+    { "src": "^/api(/.*)?$", "dest": "/api/index" },
     {
       "handle": "filesystem"
     },
