@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -78,3 +78,6 @@ externalPort = 80
 JWT_SECRET = "03c6717f054b220c7d921c7143b41aa634441ca2d941aa58308a7ca7ec3dff6464435c91760bc323da3c8ebff64b24af75cc6ff80c8042ad2897789732ea7918"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"
+
+[nix]
+channel = "stable-25_05"
