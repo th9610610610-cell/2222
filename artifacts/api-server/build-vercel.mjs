@@ -25,7 +25,7 @@ await esbuild({
     "pg-native", "handlebars", "knex", "typeorm",
     "onnxruntime-node", "@prisma/client", "dd-trace", "piscina",
     "sequelize", "mysql2", "newrelic", "electron", "playwright",
-    "puppeteer", "miniflare", "wrangler",
+    "puppeteer", "miniflare", "wrangler", "cpu-features", "ssh2",
   ],
   sourcemap: false,
 });
