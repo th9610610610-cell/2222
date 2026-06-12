@@ -1,14 +1,16 @@
 import nodemailer from 'nodemailer'
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: Number(process.env.SMTP_PORT) === 465,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  })
+}
 
 export async function sendOtpEmail(to: string, otp: string, purpose: string): Promise<void> {
   const subjects: Record<string, string> = {
@@ -28,7 +30,7 @@ export async function sendOtpEmail(to: string, otp: string, purpose: string): Pr
   const subject = subjects[purpose] ?? 'Lotto Win OTP'
   const label = labels[purpose] ?? 'verify'
 
-  await transporter.sendMail({
+  await getTransporter().sendMail({
     from: process.env.SMTP_FROM,
     to,
     subject,

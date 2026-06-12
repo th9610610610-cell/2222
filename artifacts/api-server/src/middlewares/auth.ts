@@ -4,8 +4,11 @@ import { db } from '@workspace/db'
 import { usersTable } from '@workspace/db'
 import { eq } from 'drizzle-orm'
 
-if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is required')
-const JWT_SECRET = process.env.JWT_SECRET as string
+function getJwtSecret(): string {
+  const s = process.env.JWT_SECRET
+  if (!s) throw new Error('JWT_SECRET environment variable is required')
+  return s
+}
 
 export interface AuthRequest extends Request {
   user?: typeof usersTable.$inferSelect
@@ -15,7 +18,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   const auth = req.headers.authorization
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' })
   try {
-    const payload = jwt.verify(auth.slice(7), JWT_SECRET) as { id: string; role: string }
+    const payload = jwt.verify(auth.slice(7), getJwtSecret()) as { id: string; role: string }
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, payload.id))
     if (!user) return res.status(401).json({ error: 'Unauthorized' })
     req.user = user

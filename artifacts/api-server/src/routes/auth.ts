@@ -10,8 +10,11 @@ import { generateOtp, storeOtp, verifyOtp, hasRecentOtp } from '../lib/otp'
 import { logLogin } from '../lib/auditLog'
 
 const router = Router()
-if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is required')
-const JWT_SECRET = process.env.JWT_SECRET as string
+function getJwtSecret(): string {
+  const s = process.env.JWT_SECRET
+  if (!s) throw new Error('JWT_SECRET environment variable is required')
+  return s
+}
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#])[A-Za-z\d@$!%*?&_\-#]{8,}$/
 
@@ -132,7 +135,7 @@ router.post('/login', async (req, res) => {
     }
 
     // No email — legacy login (direct token)
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '30d' })
+    const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
     const { password_hash: _, totp_secret: __, ...safeUser } = user
     await logLogin({ user_id: user.id, ip, user_agent: ua, success: true })
     return res.json({ token, user: safeUser })
@@ -157,7 +160,7 @@ router.post('/login/verify', async (req, res) => {
     const result = verifyOtp(user.email, 'login', otp)
     if (!result.valid) return res.status(400).json({ error: result.error })
 
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '30d' })
+    const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
     const { password_hash: _, totp_secret: __, ...safeUser } = user
     await logLogin({ user_id: user.id, ip, user_agent: ua, success: true })
     return res.json({ token, user: safeUser })
