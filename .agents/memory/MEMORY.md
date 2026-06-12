@@ -1,0 +1,1 @@
+- [Vercel Prebuilt API Deployment](vercel-prebuilt-api.md) — how to deploy an Express API as a Vercel serverless function alongside a Vite SPA using the Build Output API.

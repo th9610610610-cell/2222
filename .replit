@@ -77,6 +77,7 @@ externalPort = 80
 [userenv.shared]
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"
+JWT_SECRET = "b860889c265e35ad834e2a657d04bc260eea695888a7e9539c806c7d6d18c144a42a057dcbc5eec0bb347943f368f257aa31d5ccdcadedd023fa0712b25503fc"
 
 [nix]
 channel = "stable-25_05"

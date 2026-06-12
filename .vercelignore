@@ -1,0 +1,15 @@
+node_modules
+.migration-backup
+.git
+.local
+.agents
+.cache
+attached_assets
+artifacts/api-server/dist
+artifacts/lotto-win/dist
+artifacts/mockup-sandbox/dist
+artifacts/mockup-sandbox
+lib/api-client-react/src/generated
+lib/api-zod/src/generated
+*.map
+*.log
