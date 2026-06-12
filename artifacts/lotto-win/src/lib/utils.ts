@@ -1,3 +1,18 @@
+import { type ClassValue, clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+export function isValidBDPhone(phone: string): boolean {
+  return /^01[3-9]\d{8}$/.test(phone)
+}
+
+export function isValidTransactionId(txId: string): boolean {
+  return /^[A-Z0-9]{8,15}$/.test(txId)
+}
+
 export function generateTicketRef(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
   const digits = '0123456789'
