@@ -250,6 +250,22 @@ export async function runMigrations(connectionString: string): Promise<void> {
       )
     `)
 
+    // Feature: Database-backed OTP codes (replaces in-memory store)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS otp_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        identifier TEXT NOT NULL,
+        purpose TEXT NOT NULL,
+        otp_hash TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        sent_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMP NOT NULL
+      )
+    `)
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS otp_codes_identifier_purpose_idx ON otp_codes (identifier, purpose)
+    `)
+
     console.log('[migrate] All migrations applied successfully')
   } catch (err) {
     console.error('[migrate] Migration failed:', err)

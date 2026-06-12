@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @workspace/lotto-win run build",
+  "outputDirectory": "artifacts/lotto-win/dist/public",
+  "rewrites": [
+    { "source": "/api(.*)", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
