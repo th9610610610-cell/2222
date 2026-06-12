@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "postgresql-16"]
+modules = ["nodejs-20", "web", "bash"]
 
 [deployment]
 router = "application"
@@ -49,7 +49,7 @@ args = "PORT=19713 pnpm --filter @workspace/lotto-win run dev"
 waitForPort = 19713
 
 [agent]
-stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
 
 [postMerge]
@@ -75,7 +75,6 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-JWT_SECRET = "03c6717f054b220c7d921c7143b41aa634441ca2d941aa58308a7ca7ec3dff6464435c91760bc323da3c8ebff64b24af75cc6ff80c8042ad2897789732ea7918"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"
 
