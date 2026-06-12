@@ -55,7 +55,7 @@ router.post('/register', async (req, res) => {
     return res.status(200).json({ message: 'OTP sent to your email. Please verify to complete registration.', email: data.email })
   } catch (err: any) {
     if (err?.issues) return res.status(400).json({ error: err.issues[0]?.message || 'Validation error' })
-    console.error('[register error]', err?.message || err, err?.cause?.message, err?.stack)
+    console.error('[register error]', err?.message || err)
     return res.status(500).json({ error: 'Registration failed' })
   }
 })
