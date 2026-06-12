@@ -1,62 +1,85 @@
 import crypto from 'crypto'
+import { db, otpCodesTable } from '@workspace/db'
+import { and, eq, gt, lt } from 'drizzle-orm'
 
-interface OtpEntry {
-  otp: string
-  expires: number
-  purpose: string
-  attempts: number
-}
-
-const store = new Map<string, OtpEntry>()
-
-function makeKey(identifier: string, purpose: string) {
-  return `${purpose}:${identifier}`
-}
+const OTP_VALID_MS = 10 * 60 * 1000   // 10 minutes validity
+const OTP_RESEND_MS = 2 * 60 * 1000   // 2 minutes cooldown before resend allowed
+const MAX_ATTEMPTS = 5
 
 export function generateOtp(): string {
   return String(crypto.randomInt(100000, 999999))
 }
 
-export function storeOtp(identifier: string, purpose: string, otp: string): void {
-  const key = makeKey(identifier, purpose)
-  store.set(key, {
-    otp,
-    expires: Date.now() + 10 * 60 * 1000,
+function hashOtp(otp: string): string {
+  return crypto.createHash('sha256').update(otp).digest('hex')
+}
+
+export async function storeOtp(identifier: string, purpose: string, otp: string): Promise<void> {
+  // Delete any existing OTP for this identifier+purpose
+  await db.delete(otpCodesTable).where(
+    and(eq(otpCodesTable.identifier, identifier), eq(otpCodesTable.purpose, purpose))
+  )
+  await db.insert(otpCodesTable).values({
+    identifier,
     purpose,
+    otp_hash: hashOtp(otp),
     attempts: 0,
+    sent_at: new Date(),
+    expires_at: new Date(Date.now() + OTP_VALID_MS),
   })
 }
 
-export function verifyOtp(identifier: string, purpose: string, otp: string): { valid: boolean; error?: string } {
-  const key = makeKey(identifier, purpose)
-  const entry = store.get(key)
+export async function verifyOtp(
+  identifier: string,
+  purpose: string,
+  otp: string
+): Promise<{ valid: boolean; error?: string }> {
+  const [entry] = await db
+    .select()
+    .from(otpCodesTable)
+    .where(and(eq(otpCodesTable.identifier, identifier), eq(otpCodesTable.purpose, purpose)))
+    .limit(1)
+
   if (!entry) return { valid: false, error: 'OTP not found or already used' }
-  if (Date.now() > entry.expires) {
-    store.delete(key)
+  if (new Date() > entry.expires_at) {
+    await db.delete(otpCodesTable).where(eq(otpCodesTable.id, entry.id))
     return { valid: false, error: 'OTP has expired' }
   }
-  entry.attempts++
-  if (entry.attempts > 5) {
-    store.delete(key)
+
+  const newAttempts = entry.attempts + 1
+  if (newAttempts > MAX_ATTEMPTS) {
+    await db.delete(otpCodesTable).where(eq(otpCodesTable.id, entry.id))
     return { valid: false, error: 'Too many attempts. Request a new OTP.' }
   }
-  if (entry.otp !== otp) return { valid: false, error: 'Invalid OTP' }
-  store.delete(key)
+
+  await db.update(otpCodesTable).set({ attempts: newAttempts }).where(eq(otpCodesTable.id, entry.id))
+
+  if (hashOtp(otp) !== entry.otp_hash) return { valid: false, error: 'Invalid OTP' }
+
+  await db.delete(otpCodesTable).where(eq(otpCodesTable.id, entry.id))
   return { valid: true }
 }
 
-export function hasRecentOtp(identifier: string, purpose: string): boolean {
-  const key = makeKey(identifier, purpose)
-  const entry = store.get(key)
+export async function hasRecentOtp(identifier: string, purpose: string): Promise<boolean> {
+  const cooldownCutoff = new Date(Date.now() - OTP_RESEND_MS)
+  const [entry] = await db
+    .select({ sent_at: otpCodesTable.sent_at, expires_at: otpCodesTable.expires_at })
+    .from(otpCodesTable)
+    .where(
+      and(
+        eq(otpCodesTable.identifier, identifier),
+        eq(otpCodesTable.purpose, purpose),
+        gt(otpCodesTable.expires_at, new Date())
+      )
+    )
+    .limit(1)
+
   if (!entry) return false
-  if (Date.now() > entry.expires) { store.delete(key); return false }
-  return true
+  // Block resend only within 2-minute cooldown window
+  return entry.sent_at > cooldownCutoff
 }
 
-// Clean up expired entries every 5 minutes
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of store.entries()) {
-    if (now > entry.expires) store.delete(key)
-  }
+// Clean up expired OTPs every 5 minutes
+setInterval(async () => {
+  await db.delete(otpCodesTable).where(lt(otpCodesTable.expires_at, new Date()))
 }, 5 * 60 * 1000)

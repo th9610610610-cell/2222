@@ -53,12 +53,12 @@ router.post('/request-otp', requireAuth, withdrawLimiter, async (req: AuthReques
       return res.status(429).json({ error: 'Too many withdrawal requests in the last hour.' })
     }
 
-    if (hasRecentOtp(user.email, 'withdraw')) {
+    if (await hasRecentOtp(user.email, 'withdraw')) {
       return res.status(429).json({ error: 'OTP already sent. Please check your email.' })
     }
 
     const otp = generateOtp()
-    storeOtp(user.email, 'withdraw', otp)
+    await storeOtp(user.email, 'withdraw', otp)
     await sendOtpEmail(user.email, otp, 'withdraw')
 
     return res.json({ message: 'OTP sent to your email. Please verify to complete withdrawal.', email: user.email })
@@ -83,7 +83,7 @@ router.post('/', requireAuth, withdrawLimiter, async (req: AuthRequest, res) => 
     const data = withdrawSchema.parse({ amount: Number(amount), method, account_number })
 
     // Verify OTP
-    const result = verifyOtp(user.email, 'withdraw', otp)
+    const result = await verifyOtp(user.email, 'withdraw', otp)
     if (!result.valid) return res.status(400).json({ error: result.error })
 
     // Re-check balance server-side

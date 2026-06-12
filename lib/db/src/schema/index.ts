@@ -188,6 +188,16 @@ export const loginAuditLogsRelations = relations(loginAuditLogsTable, ({ one }) 
   user: one(usersTable, { fields: [loginAuditLogsTable.user_id], references: [usersTable.id] }),
 }))
 
+export const otpCodesTable = pgTable('otp_codes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  identifier: text('identifier').notNull(),
+  purpose: text('purpose').notNull(),
+  otp_hash: text('otp_hash').notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  sent_at: timestamp('sent_at').notNull().defaultNow(),
+  expires_at: timestamp('expires_at').notNull(),
+})
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, created_at: true })
 export const insertDrawSchema = createInsertSchema(drawsTable).omit({ id: true, created_at: true })
 export const insertDepositSchema = createInsertSchema(depositsTable).omit({ id: true, created_at: true })

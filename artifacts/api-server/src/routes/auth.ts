@@ -44,12 +44,12 @@ router.post('/register', async (req, res) => {
     const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, data.email))
     if (existingEmail.length > 0) return res.status(400).json({ error: 'Email already registered' })
 
-    if (hasRecentOtp(data.email, 'register')) {
-      return res.status(429).json({ error: 'OTP already sent. Please wait before requesting another.' })
+    if (await hasRecentOtp(data.email, 'register')) {
+      return res.status(429).json({ error: 'OTP already sent. Please wait 2 minutes before requesting another.' })
     }
 
     const otp = generateOtp()
-    storeOtp(data.email, 'register', otp)
+    await storeOtp(data.email, 'register', otp)
     await sendOtpEmail(data.email, otp, 'register')
 
     return res.status(200).json({ message: 'OTP sent to your email. Please verify to complete registration.', email: data.email })
@@ -68,7 +68,7 @@ router.post('/register/verify', async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' })
     }
 
-    const result = verifyOtp(email, 'register', otp)
+    const result = await verifyOtp(email, 'register', otp)
     if (!result.valid) return res.status(400).json({ error: result.error })
 
     const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone))
@@ -124,11 +124,11 @@ router.post('/login', async (req, res) => {
 
     // If user has email, require OTP for login (new device verification)
     if (user.email) {
-      if (hasRecentOtp(user.email, 'login')) {
+      if (await hasRecentOtp(user.email, 'login')) {
         return res.status(200).json({ requireOtp: true, email: user.email, message: 'OTP already sent to your email.' })
       }
       const otp = generateOtp()
-      storeOtp(user.email, 'login', otp)
+      await storeOtp(user.email, 'login', otp)
       await sendOtpEmail(user.email, otp, 'login')
       await logLogin({ user_id: user.id, ip, user_agent: ua, success: false, reason: 'otp_pending' })
       return res.status(200).json({ requireOtp: true, email: user.email, message: 'OTP sent to your email.' })
@@ -157,7 +157,7 @@ router.post('/login/verify', async (req, res) => {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone))
     if (!user || !user.email) return res.status(404).json({ error: 'User not found' })
 
-    const result = verifyOtp(user.email, 'login', otp)
+    const result = await verifyOtp(user.email, 'login', otp)
     if (!result.valid) return res.status(400).json({ error: result.error })
 
     const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
@@ -180,12 +180,12 @@ router.post('/reset-password/request', async (req, res) => {
     // Always return success to prevent user enumeration
     if (!user || !user.email) return res.status(200).json({ message: 'If this account exists, a reset OTP has been sent.' })
 
-    if (hasRecentOtp(user.email, 'reset')) {
-      return res.status(429).json({ error: 'OTP already sent. Please wait before requesting another.' })
+    if (await hasRecentOtp(user.email, 'reset')) {
+      return res.status(429).json({ error: 'OTP already sent. Please wait 2 minutes before requesting another.' })
     }
 
     const otp = generateOtp()
-    storeOtp(user.email, 'reset', otp)
+    await storeOtp(user.email, 'reset', otp)
     await sendOtpEmail(user.email, otp, 'reset')
     return res.status(200).json({ message: 'If this account exists, a reset OTP has been sent.', email: user.email })
   } catch (err: any) {
@@ -207,7 +207,7 @@ router.post('/reset-password/confirm', async (req, res) => {
     const [user] = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.phone, phone))
     if (!user || !user.email) return res.status(404).json({ error: 'User not found' })
 
-    const result = verifyOtp(user.email, 'reset', otp)
+    const result = await verifyOtp(user.email, 'reset', otp)
     if (!result.valid) return res.status(400).json({ error: result.error })
 
     const password_hash = await bcrypt.hash(new_password, 12)
