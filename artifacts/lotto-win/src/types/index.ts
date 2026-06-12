@@ -4,6 +4,7 @@ export interface User {
   id: string
   full_name: string
   phone: string
+  email?: string
   role: UserRole
   balance: number
   total_deposited: number
@@ -12,6 +13,7 @@ export interface User {
   is_flagged: boolean
   referral_bonus_pct: number
   referral_bonus_expires: string | null
+  partner_code?: string
   created_at: string
 }
 
