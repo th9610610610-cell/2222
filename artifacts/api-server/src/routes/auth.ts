@@ -50,7 +50,10 @@ router.post('/register', async (req, res) => {
 
     const otp = generateOtp()
     await storeOtp(data.email, 'register', otp)
-    await sendOtpEmail(data.email, otp, 'register')
+    // Fire email in background — respond immediately to avoid cold-start delay
+    sendOtpEmail(data.email, otp, 'register').catch(err =>
+      console.error('[register otp email]', err?.message)
+    )
 
     return res.status(200).json({ message: 'OTP sent to your email. Please verify to complete registration.', email: data.email })
   } catch (err: any) {
@@ -82,7 +85,9 @@ router.post('/register/verify', async (req, res) => {
       full_name, email, phone, password_hash, is_verified: true,
     }).returning({ id: usersTable.id, full_name: usersTable.full_name, phone: usersTable.phone, email: usersTable.email, role: usersTable.role })
 
-    return res.status(201).json({ user })
+    // Auto-login: return JWT so frontend can skip the re-login step
+    const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
+    return res.status(201).json({ user, token })
   } catch (err: any) {
     console.error('[register verify error]', err?.message || err)
     return res.status(500).json({ error: 'Verification failed' })
@@ -122,19 +127,7 @@ router.post('/login', async (req, res) => {
     // Reset failed attempts on success
     await db.update(usersTable).set({ failed_login_attempts: 0, locked_until: null }).where(eq(usersTable.id, user.id))
 
-    // If user has email, require OTP for login (new device verification)
-    if (user.email) {
-      if (await hasRecentOtp(user.email, 'login')) {
-        return res.status(200).json({ requireOtp: true, email: user.email, message: 'OTP already sent to your email.' })
-      }
-      const otp = generateOtp()
-      await storeOtp(user.email, 'login', otp)
-      await sendOtpEmail(user.email, otp, 'login')
-      await logLogin({ user_id: user.id, ip, user_agent: ua, success: false, reason: 'otp_pending' })
-      return res.status(200).json({ requireOtp: true, email: user.email, message: 'OTP sent to your email.' })
-    }
-
-    // No email — legacy login (direct token)
+    // Issue JWT directly — password is sufficient authentication
     const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
     const { password_hash: _, totp_secret: __, ...safeUser } = user
     await logLogin({ user_id: user.id, ip, user_agent: ua, success: true })
@@ -186,7 +179,10 @@ router.post('/reset-password/request', async (req, res) => {
 
     const otp = generateOtp()
     await storeOtp(user.email, 'reset', otp)
-    await sendOtpEmail(user.email, otp, 'reset')
+    // Fire email in background — respond immediately
+    sendOtpEmail(user.email, otp, 'reset').catch(err =>
+      console.error('[reset otp email]', err?.message)
+    )
     return res.status(200).json({ message: 'If this account exists, a reset OTP has been sent.', email: user.email })
   } catch (err: any) {
     console.error('[reset request error]', err?.message || err)

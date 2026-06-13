@@ -21,13 +21,15 @@ export default function ForgotPasswordPage() {
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showNewPw, setShowNewPw] = useState(false)
+  const [showConfirmPw, setShowConfirmPw] = useState(false)
   const [error, setError] = useState('')
+  const [resendMsg, setResendMsg] = useState('')
   const [loading, setLoading] = useState(false)
   const [resendKey, setResendKey] = useState(0)
 
   const steps: Step[] = ['phone', 'otp', 'password', 'done']
   const stepIdx = steps.indexOf(step)
-
   const stepLabel = ['Phone', 'Verify', 'Password', 'Done']
 
   const handleRequestOtp = async (e: React.FormEvent) => {
@@ -45,12 +47,18 @@ export default function ForgotPasswordPage() {
   }
 
   const handleResend = async () => {
-    setError(''); setLoading(true)
-    await fetch(`${BASE}/api/auth/reset-password/request`, {
+    setError(''); setResendMsg(''); setLoading(true)
+    const res = await fetch(`${BASE}/api/auth/reset-password/request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone }),
     })
+    const data = await res.json()
     setLoading(false)
+    if (!res.ok) {
+      setError(data.error || 'Could not resend OTP')
+      return
+    }
+    setResendMsg('OTP resent! Check your inbox.')
     setResendKey(k => k + 1)
   }
 
@@ -63,7 +71,6 @@ export default function ForgotPasswordPage() {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newPassword !== confirmPassword) { setError('Passwords do not match'); return }
-    if (newPassword.length < 8) { setError('Password must be at least 8 characters'); return }
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/reset-password/confirm`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -101,6 +108,7 @@ export default function ForgotPasswordPage() {
 
       <div style={{ width: '100%', maxWidth: '360px', background: '#100f28', borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)', padding: '28px 24px' }}>
         {error && <div style={{ background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f88', fontSize: '13px', marginBottom: '16px' }}>{error}</div>}
+        {resendMsg && <div style={{ background: 'rgba(240,165,0,0.1)', border: '1px solid rgba(240,165,0,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f0a500', fontSize: '13px', marginBottom: '16px' }}>{resendMsg}</div>}
 
         {step === 'phone' && (
           <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -132,9 +140,10 @@ export default function ForgotPasswordPage() {
                 Reset code sent to<br />
                 <strong style={{ color: '#f0a500' }}>{maskedEmail || 'your email'}</strong>
               </p>
+              <p style={{ color: '#8888aa', fontSize: '12px', marginTop: '6px' }}>Check spam/junk if not in inbox</p>
             </div>
-            <OtpInput value={otp} onChange={setOtp} disabled={loading} />
-            <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
+            <OtpInput value={otp} onChange={v => { setOtp(v); setError('') }} disabled={loading} />
+            <OtpTimer key={resendKey} seconds={120} onResend={handleResend} loading={loading} />
             <button type="submit" disabled={otp.length < 6} style={{
               width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
               cursor: otp.length < 6 ? 'not-allowed' : 'pointer',
@@ -143,7 +152,7 @@ export default function ForgotPasswordPage() {
             }}>
               Confirm Code →
             </button>
-            <button type="button" onClick={() => { setStep('phone'); setOtp(''); setError('') }}
+            <button type="button" onClick={() => { setStep('phone'); setOtp(''); setError(''); setResendMsg('') }}
               style={{ background: 'none', border: 'none', color: '#8888aa', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
               ← Change phone number
             </button>
@@ -158,13 +167,37 @@ export default function ForgotPasswordPage() {
             </div>
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>New Password</label>
-              <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                placeholder="Min 8 chars, upper, lower, number, symbol" required style={inputStyle} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Min 8 chars, upper, lower, number, symbol"
+                  required
+                  style={{ ...inputStyle, paddingRight: '42px' }}
+                />
+                <button type="button" onClick={() => setShowNewPw(v => !v)}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#8888aa', cursor: 'pointer', fontSize: '16px', padding: '2px' }}>
+                  {showNewPw ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Confirm Password</label>
-              <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Repeat new password" required style={inputStyle} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showConfirmPw ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  required
+                  style={{ ...inputStyle, paddingRight: '42px' }}
+                />
+                <button type="button" onClick={() => setShowConfirmPw(v => !v)}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#8888aa', cursor: 'pointer', fontSize: '16px', padding: '2px' }}>
+                  {showConfirmPw ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
 
             {/* Password strength hints */}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLocation } from 'wouter'
 import { API_BASE } from '../lib/apiBase'
+import { useAuth } from '../lib/auth'
 import OtpInput, { OtpTimer } from '../components/OtpInput'
 
 const BASE = API_BASE
@@ -21,13 +22,16 @@ const btnStyle = (gradient: string, disabled?: boolean): React.CSSProperties => 
 
 export default function RegisterPage() {
   const [, navigate] = useLocation()
+  const { refresh } = useAuth()
   const [step, setStep] = useState<'form' | 'otp'>('form')
   const [form, setForm] = useState({ full_name: '', email: '', phone: '', password: '' })
+  const [showPassword, setShowPassword] = useState(false)
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [resendKey, setResendKey] = useState(0)
+  const [resendMsg, setResendMsg] = useState('')
 
   const inp = (field: string, value: string) => setForm(f => ({ ...f, [field]: value }))
 
@@ -36,7 +40,7 @@ export default function RegisterPage() {
     setError(''); setSuccess(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase() }),
     })
     const data = await res.json()
     setLoading(false)
@@ -45,12 +49,18 @@ export default function RegisterPage() {
   }
 
   const handleResend = async () => {
-    setError(''); setLoading(true)
-    await fetch(`${BASE}/api/auth/register`, {
+    setError(''); setResendMsg(''); setLoading(true)
+    const res = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase() }),
     })
+    const data = await res.json()
     setLoading(false)
+    if (!res.ok) {
+      setError(data.error || 'Could not resend OTP')
+      return
+    }
+    setResendMsg('OTP resent! Check your inbox.')
     setResendKey(k => k + 1)
   }
 
@@ -60,11 +70,18 @@ export default function RegisterPage() {
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/register/verify`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, otp }),
+      body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase(), otp }),
     })
     const data = await res.json()
     setLoading(false)
     if (!res.ok) { setError(data.error || 'Verification failed'); return }
+    // Auto-login if token returned
+    if (data.token) {
+      localStorage.setItem('lw_token', data.token)
+      await refresh()
+      navigate('/')
+      return
+    }
     setSuccess('Account created! Redirecting to login...')
     setTimeout(() => navigate('/login'), 1500)
   }
@@ -104,6 +121,7 @@ export default function RegisterPage() {
       <div style={{ width: '100%', maxWidth: '380px', background: '#100f28', borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)', padding: '28px 24px' }}>
         {error && <div style={{ background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f88', fontSize: '13px', marginBottom: '16px' }}>{error}</div>}
         {success && <div style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#6ee7a0', fontSize: '13px', marginBottom: '16px' }}>{success}</div>}
+        {resendMsg && <div style={{ background: 'rgba(240,165,0,0.1)', border: '1px solid rgba(240,165,0,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f0a500', fontSize: '13px', marginBottom: '16px' }}>{resendMsg}</div>}
 
         {step === 'form' && (
           <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -122,7 +140,23 @@ export default function RegisterPage() {
             </div>
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Password</label>
-              <input type="password" value={form.password} onChange={e => inp('password', e.target.value)} placeholder="Min 8 chars, upper, lower, number, symbol" required style={inputStyle} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={e => inp('password', e.target.value)}
+                  placeholder="Min 8 chars, upper, lower, number, symbol"
+                  required
+                  style={{ ...inputStyle, paddingRight: '42px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#8888aa', cursor: 'pointer', fontSize: '16px', padding: '2px' }}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
               <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>e.g. MyPass@123</p>
             </div>
             <button type="submit" disabled={loading} style={btnStyle('linear-gradient(90deg, #f0a500, #e8187a)', loading)}>
@@ -139,13 +173,14 @@ export default function RegisterPage() {
                 Enter the 6-digit code sent to<br />
                 <strong style={{ color: '#f0a500' }}>{maskedEmail}</strong>
               </p>
+              <p style={{ color: '#8888aa', fontSize: '12px', marginTop: '6px' }}>Check spam/junk folder if not in inbox</p>
             </div>
-            <OtpInput value={otp} onChange={setOtp} disabled={loading} />
-            <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
+            <OtpInput value={otp} onChange={v => { setOtp(v); setError('') }} disabled={loading} />
+            <OtpTimer key={resendKey} seconds={120} onResend={handleResend} loading={loading} />
             <button type="submit" disabled={loading || otp.length < 6} style={btnStyle('linear-gradient(90deg, #f0a500, #e8187a)', loading || otp.length < 6)}>
               {loading ? 'Verifying...' : 'Verify & Create Account ✓'}
             </button>
-            <button type="button" onClick={() => { setStep('form'); setOtp(''); setError('') }}
+            <button type="button" onClick={() => { setStep('form'); setOtp(''); setError(''); setResendMsg('') }}
               style={{ background: 'none', border: 'none', color: '#8888aa', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
               ← Change details
             </button>
