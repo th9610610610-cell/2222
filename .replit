@@ -85,6 +85,8 @@ JWT_SECRET = "b860889c265e35ad834e2a657d04bc260eea695888a7e9539c806c7d6d18c144a4
 SMTP_PASS = "hckwkrlyjkrybspm"
 SMTP_USER = "lottowinsbd@gmail.com"
 SMTP_FROM = "Lotto Win <lottowinsbd@gmail.com>"
+ALLOWED_ORIGINS = ""
+NODE_ENV = "development"
 
 [nix]
 channel = "stable-25_05"
