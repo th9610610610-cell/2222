@@ -79,7 +79,5 @@ export async function hasRecentOtp(identifier: string, purpose: string): Promise
   return entry.sent_at > cooldownCutoff
 }
 
-// Clean up expired OTPs every 5 minutes
-setInterval(async () => {
-  await db.delete(otpCodesTable).where(lt(otpCodesTable.expires_at, new Date()))
-}, 5 * 60 * 1000)
+// Note: expired OTPs are cleaned up per-request in verifyOtp above.
+// setInterval is intentionally omitted — it does not work in serverless environments.

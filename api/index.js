@@ -30549,8 +30549,8 @@ var require_lt = __commonJS({
   "../../node_modules/.pnpm/semver@7.8.4/node_modules/semver/functions/lt.js"(exports2, module2) {
     "use strict";
     var compare2 = require_compare();
-    var lt2 = (a, b, loose) => compare2(a, b, loose) < 0;
-    module2.exports = lt2;
+    var lt3 = (a, b, loose) => compare2(a, b, loose) < 0;
+    module2.exports = lt3;
   }
 });
 
@@ -30602,7 +30602,7 @@ var require_cmp = __commonJS({
     var neq = require_neq();
     var gt2 = require_gt();
     var gte2 = require_gte();
-    var lt2 = require_lt();
+    var lt3 = require_lt();
     var lte2 = require_lte();
     var cmp = (a, op, b, loose) => {
       switch (op) {
@@ -30633,7 +30633,7 @@ var require_cmp = __commonJS({
         case ">=":
           return gte2(a, b, loose);
         case "<":
-          return lt2(a, b, loose);
+          return lt3(a, b, loose);
         case "<=":
           return lte2(a, b, loose);
         default:
@@ -31436,7 +31436,7 @@ var require_outside = __commonJS({
     var Range = require_range2();
     var satisfies = require_satisfies();
     var gt2 = require_gt();
-    var lt2 = require_lt();
+    var lt3 = require_lt();
     var lte2 = require_lte();
     var gte2 = require_gte();
     var outside = (version3, range, hilo, options) => {
@@ -31447,12 +31447,12 @@ var require_outside = __commonJS({
         case ">":
           gtfn = gt2;
           ltefn = lte2;
-          ltfn = lt2;
+          ltfn = lt3;
           comp = ">";
           ecomp = ">=";
           break;
         case "<":
-          gtfn = lt2;
+          gtfn = lt3;
           ltefn = gte2;
           ltfn = gt2;
           comp = "<";
@@ -31632,12 +31632,12 @@ var require_subset = __commonJS({
         }
       }
       const eqSet = /* @__PURE__ */ new Set();
-      let gt2, lt2;
+      let gt2, lt3;
       for (const c of sub) {
         if (c.operator === ">" || c.operator === ">=") {
           gt2 = higherGT(gt2, c, options);
         } else if (c.operator === "<" || c.operator === "<=") {
-          lt2 = lowerLT(lt2, c, options);
+          lt3 = lowerLT(lt3, c, options);
         } else {
           eqSet.add(c.semver);
         }
@@ -31646,11 +31646,11 @@ var require_subset = __commonJS({
         return null;
       }
       let gtltComp;
-      if (gt2 && lt2) {
-        gtltComp = compare2(gt2.semver, lt2.semver, options);
+      if (gt2 && lt3) {
+        gtltComp = compare2(gt2.semver, lt3.semver, options);
         if (gtltComp > 0) {
           return null;
-        } else if (gtltComp === 0 && (gt2.operator !== ">=" || lt2.operator !== "<=")) {
+        } else if (gtltComp === 0 && (gt2.operator !== ">=" || lt3.operator !== "<=")) {
           return null;
         }
       }
@@ -31658,7 +31658,7 @@ var require_subset = __commonJS({
         if (gt2 && !satisfies(eq2, String(gt2), options)) {
           return null;
         }
-        if (lt2 && !satisfies(eq2, String(lt2), options)) {
+        if (lt3 && !satisfies(eq2, String(lt3), options)) {
           return null;
         }
         for (const c of dom) {
@@ -31670,9 +31670,9 @@ var require_subset = __commonJS({
       }
       let higher, lower;
       let hasDomLT, hasDomGT;
-      let needDomLTPre = lt2 && !options.includePrerelease && lt2.semver.prerelease.length ? lt2.semver : false;
+      let needDomLTPre = lt3 && !options.includePrerelease && lt3.semver.prerelease.length ? lt3.semver : false;
       let needDomGTPre = gt2 && !options.includePrerelease && gt2.semver.prerelease.length ? gt2.semver : false;
-      if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt2.operator === "<" && needDomLTPre.prerelease[0] === 0) {
+      if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt3.operator === "<" && needDomLTPre.prerelease[0] === 0) {
         needDomLTPre = false;
       }
       for (const c of dom) {
@@ -31693,29 +31693,29 @@ var require_subset = __commonJS({
             return false;
           }
         }
-        if (lt2) {
+        if (lt3) {
           if (needDomLTPre) {
             if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomLTPre.major && c.semver.minor === needDomLTPre.minor && c.semver.patch === needDomLTPre.patch) {
               needDomLTPre = false;
             }
           }
           if (c.operator === "<" || c.operator === "<=") {
-            lower = lowerLT(lt2, c, options);
-            if (lower === c && lower !== lt2) {
+            lower = lowerLT(lt3, c, options);
+            if (lower === c && lower !== lt3) {
               return false;
             }
-          } else if (lt2.operator === "<=" && !c.test(lt2.semver)) {
+          } else if (lt3.operator === "<=" && !c.test(lt3.semver)) {
             return false;
           }
         }
-        if (!c.operator && (lt2 || gt2) && gtltComp !== 0) {
+        if (!c.operator && (lt3 || gt2) && gtltComp !== 0) {
           return false;
         }
       }
-      if (gt2 && hasDomLT && !lt2 && gtltComp !== 0) {
+      if (gt2 && hasDomLT && !lt3 && gtltComp !== 0) {
         return false;
       }
-      if (lt2 && hasDomGT && !gt2 && gtltComp !== 0) {
+      if (lt3 && hasDomGT && !gt2 && gtltComp !== 0) {
         return false;
       }
       if (needDomGTPre || needDomLTPre) {
@@ -31765,7 +31765,7 @@ var require_semver2 = __commonJS({
     var sort = require_sort();
     var rsort = require_rsort();
     var gt2 = require_gt();
-    var lt2 = require_lt();
+    var lt3 = require_lt();
     var eq2 = require_eq();
     var neq = require_neq();
     var gte2 = require_gte();
@@ -31804,7 +31804,7 @@ var require_semver2 = __commonJS({
       sort,
       rsort,
       gt: gt2,
-      lt: lt2,
+      lt: lt3,
       eq: eq2,
       neq,
       gte: gte2,
@@ -76185,9 +76185,6 @@ async function hasRecentOtp(identifier, purpose) {
   if (!entry) return false;
   return entry.sent_at > cooldownCutoff;
 }
-setInterval(async () => {
-  await db.delete(otpCodesTable).where(lt(otpCodesTable.expires_at, /* @__PURE__ */ new Date()));
-}, 5 * 60 * 1e3);
 
 // src/lib/auditLog.ts
 async function logAdminAction(params) {

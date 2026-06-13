@@ -14,7 +14,6 @@ import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPage from './pages/AdminPage'
 import WinnerPage from './pages/WinnerPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
-import DeployPage from './pages/DeployPage'
 import NotFound from './pages/not-found'
 
 const queryClient = new QueryClient()
@@ -35,7 +34,6 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/lw-secure-7x9k" component={AdminLoginPage} />
       <Route path="/admin" component={AdminPage} />
-      <Route path="/deploy" component={DeployPage} />
       <Route component={NotFound} />
     </Switch>
   )

@@ -3,18 +3,16 @@ import { useLocation } from 'wouter'
 import { useAuth } from '../lib/auth'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
-import { Notification } from '../types'
-import { formatCurrency, formatDate } from '../lib/utils'
+import { formatCurrency } from '../lib/utils'
 
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
-type EditSection = 'name' | 'phone' | 'password' | null
+type EditSection = 'name' | 'phone' | 'password' | 'totp-setup' | 'totp-disable' | null
 
 export default function ProfilePage() {
   const [, navigate] = useLocation()
   const { user, token, logout, refresh } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>([])
   const [editSection, setEditSection] = useState<EditSection>(null)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -23,14 +21,19 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
+  // TOTP state
+  const [totpQr, setTotpQr] = useState<string>('')
+  const [totpSecret, setTotpSecret] = useState<string>('')
+  const [totpCode, setTotpCode] = useState('')
+  const [totpLoading, setTotpLoading] = useState(false)
+  const [totpEnabled, setTotpEnabled] = useState(false)
+
   useEffect(() => {
     if (!token) { navigate('/login'); return }
     setName(user?.full_name || '')
     setPhone(user?.phone || '')
-    fetch(`${BASE}/api/user/notifications`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => setNotifications(d.notifications || []))
-    fetch(`${BASE}/api/user/notifications`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
-  }, [token, user?.full_name])
+    setTotpEnabled(!!(user as any)?.totp_enabled)
+  }, [token, user?.full_name, user?.phone, (user as any)?.totp_enabled])
 
   const saveSection = async () => {
     setSaving(true); setMsg(null)
@@ -49,6 +52,50 @@ export default function ProfilePage() {
     setSaving(false)
   }
 
+  const startTotpSetup = async () => {
+    setTotpLoading(true); setMsg(null)
+    const res = await fetch(`${BASE}/api/totp/setup`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await res.json()
+    setTotpLoading(false)
+    if (!res.ok) { setMsg({ text: data.error || 'Failed to start 2FA setup', ok: false }); return }
+    setTotpQr(data.qr); setTotpSecret(data.secret)
+    setEditSection('totp-setup')
+  }
+
+  const enableTotp = async () => {
+    if (!totpCode || totpCode.length < 6) { setMsg({ text: 'Enter the 6-digit code from your authenticator', ok: false }); return }
+    setTotpLoading(true); setMsg(null)
+    const res = await fetch(`${BASE}/api/totp/enable`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ token: totpCode }),
+    })
+    const data = await res.json()
+    setTotpLoading(false)
+    if (!res.ok) { setMsg({ text: data.error || 'Invalid code', ok: false }); return }
+    setTotpEnabled(true); setEditSection(null); setTotpCode('')
+    setMsg({ text: '2FA enabled! Your account is now extra secure.', ok: true })
+    await refresh()
+  }
+
+  const disableTotp = async () => {
+    if (!totpCode || totpCode.length < 6) { setMsg({ text: 'Enter your authenticator code to disable 2FA', ok: false }); return }
+    setTotpLoading(true); setMsg(null)
+    const res = await fetch(`${BASE}/api/totp/disable`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ token: totpCode }),
+    })
+    const data = await res.json()
+    setTotpLoading(false)
+    if (!res.ok) { setMsg({ text: data.error || 'Invalid code', ok: false }); return }
+    setTotpEnabled(false); setEditSection(null); setTotpCode('')
+    setMsg({ text: '2FA disabled.', ok: true })
+    await refresh()
+  }
+
   const handleLogout = () => { logout(); navigate('/login') }
   const initial = user?.full_name?.charAt(0).toUpperCase() || 'U'
   const uid = user?.id ? parseInt(String(user.id), 10) : NaN
@@ -56,23 +103,30 @@ export default function ProfilePage() {
     ? `ACC#${!isNaN(uid) ? 1000 + uid : String(user.id).replace(/\D/g, '').slice(-4).padStart(4, '0')}`
     : 'ACC#----'
 
+  const isAdmin = ['admin', 'moderator'].includes(user?.role || '')
+
   const inputStyle: React.CSSProperties = {
     width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(155,32,216,0.4)',
     borderRadius: '10px', padding: '10px 14px', color: '#fff', fontSize: '14px',
     outline: 'none', fontFamily: 'Poppins, sans-serif', boxSizing: 'border-box', marginBottom: '10px',
   }
-
   const editCardStyle: React.CSSProperties = {
     background: '#1a1640', borderRadius: '14px', border: '1px solid rgba(155,32,216,0.3)',
     padding: '16px', marginBottom: '10px',
   }
+  const saveBtn = (disabled?: boolean): React.CSSProperties => ({
+    width: '100%', padding: '11px', borderRadius: '10px', border: 'none',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    background: 'linear-gradient(90deg,#e8187a,#9b20d8)', color: '#fff',
+    fontWeight: 700, fontFamily: 'Poppins, sans-serif', opacity: disabled ? 0.5 : 1,
+  })
 
   return (
     <div className="app">
       <TopNav />
       <div style={{ padding: '16px 16px 120px' }}>
 
-        {/* ── Profile Hero Card ── */}
+        {/* Profile Hero */}
         <div style={{
           background: 'linear-gradient(135deg, #1e0d42 0%, #0e1640 60%, #0a1535 100%)',
           borderRadius: '20px', boxShadow: '0 0 0 1.5px rgba(155,32,216,0.45)',
@@ -90,11 +144,14 @@ export default function ProfilePage() {
               <p style={{ color: '#6060a0', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>{accNumber}</p>
             </div>
           </div>
-          <span style={{ background: 'rgba(155,32,216,0.2)', color: '#9b20d8', borderRadius: '20px', padding: '4px 14px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.5px' }}>{(user?.role || 'USER').toUpperCase()}</span>
-          {user?.is_flagged && <span style={{ background: 'rgba(232,24,122,0.2)', color: '#e8187a', borderRadius: '20px', padding: '4px 14px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', marginLeft: '8px' }}>⚠️ FLAGGED</span>}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ background: 'rgba(155,32,216,0.2)', color: '#9b20d8', borderRadius: '20px', padding: '4px 14px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.5px' }}>{(user?.role || 'USER').toUpperCase()}</span>
+            {totpEnabled && <span style={{ background: 'rgba(74,222,128,0.2)', color: '#4ade80', borderRadius: '20px', padding: '4px 14px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>🔐 2FA ON</span>}
+            {(user as any)?.is_flagged && <span style={{ background: 'rgba(232,24,122,0.2)', color: '#e8187a', borderRadius: '20px', padding: '4px 14px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>⚠️ FLAGGED</span>}
+          </div>
         </div>
 
-        {/* ── Stats ── */}
+        {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
           {[
             { label: 'BALANCE', value: formatCurrency(user?.balance || 0), color: '#f0a500' },
@@ -109,7 +166,7 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* ── Edit Sections ── */}
+        {/* Account Settings */}
         <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '14px', marginBottom: '10px' }}>Account Settings</p>
 
         {msg && (
@@ -118,7 +175,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Update Name */}
+        {/* Full Name */}
         <div style={editCardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEditSection(editSection === 'name' ? null : 'name')}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -133,12 +190,12 @@ export default function ProfilePage() {
           {editSection === 'name' && (
             <div style={{ marginTop: '14px' }}>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" style={inputStyle} />
-              <button onClick={saveSection} disabled={saving} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg,#f0a500,#e8187a)', color: '#fff', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>{saving ? 'Saving…' : 'Save Name'}</button>
+              <button onClick={saveSection} disabled={saving} style={saveBtn(saving)}>{saving ? 'Saving…' : 'Save Name'}</button>
             </div>
           )}
         </div>
 
-        {/* Update Phone */}
+        {/* Phone */}
         <div style={editCardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEditSection(editSection === 'phone' ? null : 'phone')}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -153,12 +210,12 @@ export default function ProfilePage() {
           {editSection === 'phone' && (
             <div style={{ marginTop: '14px' }}>
               <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="01XXXXXXXXX" style={inputStyle} />
-              <button onClick={saveSection} disabled={saving} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg,#22d3ee,#9b20d8)', color: '#fff', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>{saving ? 'Saving…' : 'Save Number'}</button>
+              <button onClick={saveSection} disabled={saving} style={{ ...saveBtn(saving), background: 'linear-gradient(90deg,#22d3ee,#9b20d8)' }}>{saving ? 'Saving…' : 'Save Number'}</button>
             </div>
           )}
         </div>
 
-        {/* Update Password */}
+        {/* Password */}
         <div style={editCardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEditSection(editSection === 'password' ? null : 'password')}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -174,10 +231,87 @@ export default function ProfilePage() {
             <div style={{ marginTop: '14px' }}>
               <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} placeholder="Current password" style={inputStyle} />
               <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password (min 6 chars)" style={inputStyle} />
-              <button onClick={saveSection} disabled={saving || newPw.length < 6} style={{ width: '100%', padding: '11px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg,#e8187a,#9b20d8)', color: '#fff', fontWeight: 700, fontFamily: 'Poppins, sans-serif', opacity: newPw.length < 6 ? 0.5 : 1 }}>{saving ? 'Saving…' : 'Change Password'}</button>
+              <button onClick={saveSection} disabled={saving || newPw.length < 6} style={saveBtn(saving || newPw.length < 6)}>{saving ? 'Saving…' : 'Change Password'}</button>
             </div>
           )}
         </div>
+
+        {/* TOTP 2FA — admin/moderator only */}
+        {isAdmin && (
+          <div style={editCardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              onClick={() => {
+                if (totpEnabled) { setEditSection(editSection === 'totp-disable' ? null : 'totp-disable'); setTotpCode('') }
+                else if (editSection === 'totp-setup') { setEditSection(null) }
+                else { startTotpSetup() }
+              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>🔐</span>
+                <div>
+                  <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#fff', fontSize: '14px' }}>Authenticator 2FA</p>
+                  <p style={{ color: totpEnabled ? '#4ade80' : '#7878a8', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
+                    {totpEnabled ? '✅ Enabled — Extra secure' : 'Not enabled'}
+                  </p>
+                </div>
+              </div>
+              {totpLoading
+                ? <span style={{ color: '#9b20d8', fontSize: '13px' }}>…</span>
+                : <span style={{ color: totpEnabled ? '#e8187a' : '#4ade80', fontSize: '13px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>
+                    {totpEnabled ? 'Disable' : 'Enable'}
+                  </span>
+              }
+            </div>
+
+            {/* Setup: show QR + secret */}
+            {editSection === 'totp-setup' && !totpEnabled && (
+              <div style={{ marginTop: '16px' }}>
+                <p style={{ color: '#aaa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px', lineHeight: 1.6 }}>
+                  1. Install <strong style={{ color: '#fff' }}>Google Authenticator</strong> or <strong style={{ color: '#fff' }}>Authy</strong><br />
+                  2. Scan the QR code below<br />
+                  3. Enter the 6-digit code to confirm
+                </p>
+                {totpQr && (
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+                    <div style={{ background: '#fff', borderRadius: '12px', padding: '12px' }}>
+                      <img src={totpQr} alt="2FA QR Code" style={{ width: '160px', height: '160px', display: 'block' }} />
+                    </div>
+                  </div>
+                )}
+                {totpSecret && (
+                  <p style={{ color: '#8888aa', fontSize: '11px', fontFamily: 'Poppins, sans-serif', textAlign: 'center', marginBottom: '14px', wordBreak: 'break-all' }}>
+                    Manual key: <span style={{ color: '#f0a500' }}>{totpSecret}</span>
+                  </p>
+                )}
+                <input
+                  type="text" inputMode="numeric" maxLength={6}
+                  value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Enter 6-digit code" style={inputStyle}
+                />
+                <button onClick={enableTotp} disabled={totpLoading || totpCode.length < 6} style={saveBtn(totpLoading || totpCode.length < 6)}>
+                  {totpLoading ? 'Verifying…' : 'Confirm & Enable 2FA'}
+                </button>
+              </div>
+            )}
+
+            {/* Disable flow */}
+            {editSection === 'totp-disable' && totpEnabled && (
+              <div style={{ marginTop: '16px' }}>
+                <p style={{ color: '#aaa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px' }}>
+                  Enter the current code from your authenticator app to disable 2FA.
+                </p>
+                <input
+                  type="text" inputMode="numeric" maxLength={6}
+                  value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="6-digit authenticator code" style={inputStyle}
+                />
+                <button onClick={disableTotp} disabled={totpLoading || totpCode.length < 6}
+                  style={{ ...saveBtn(totpLoading || totpCode.length < 6), background: 'rgba(232,24,122,0.8)' }}>
+                  {totpLoading ? 'Disabling…' : 'Disable 2FA'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quick Nav */}
         <div style={{ background: '#13112e', borderRadius: '18px', border: '1px solid rgba(155,32,216,0.18)', overflow: 'hidden', marginBottom: '14px', marginTop: '4px' }}>
@@ -185,8 +319,9 @@ export default function ProfilePage() {
             { emoji: '🎟️', label: 'My Tickets', sub: 'View all tickets', path: '/my-tickets' },
             { emoji: '👛', label: 'Wallet', sub: 'Balance & history', path: '/wallet' },
             { emoji: '💳', label: 'Add Money', sub: 'bKash · Nagad · Rocket', path: '/deposit' },
+            { emoji: '🔔', label: 'Notifications', sub: 'Your alerts & updates', path: '/notifications' },
           ].map((item, i) => (
-            <div key={item.path} onClick={() => navigate(item.path)} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: i < 2 ? '1px solid rgba(155,32,216,0.1)' : 'none' }}>
+            <div key={item.path} onClick={() => navigate(item.path)} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: i < 3 ? '1px solid rgba(155,32,216,0.1)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span style={{ fontSize: '20px' }}>{item.emoji}</span>
                 <div>
@@ -198,22 +333,6 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
-
-        {/* Notifications */}
-        {notifications.length > 0 && (
-          <>
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '14px', marginBottom: '10px' }}>🔔 Notifications</p>
-            {notifications.slice(0, 3).map(n => (
-              <div key={n.id} style={{ background: '#13112e', borderRadius: '14px', border: '1px solid rgba(155,32,216,0.15)', padding: '14px 16px', marginBottom: '8px', display: 'flex', gap: '12px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#e8187a', marginTop: '5px', flexShrink: 0 }} />
-                <div>
-                  <p style={{ color: '#ddd', fontSize: '13px', lineHeight: '1.5', fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>{n.message}</p>
-                  <p style={{ color: '#6060a0', fontSize: '11px', fontFamily: 'Poppins, sans-serif' }}>{formatDate(n.created_at)}</p>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
 
         {/* Sign Out */}
         <button onClick={handleLogout} style={{ width: '100%', padding: '15px', borderRadius: '50px', border: '1.5px solid rgba(232,24,122,0.4)', cursor: 'pointer', background: 'rgba(232,24,122,0.08)', color: '#e8187a', fontFamily: 'Poppins, sans-serif', fontSize: '15px', fontWeight: 700, marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
