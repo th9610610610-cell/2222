@@ -76310,13 +76310,47 @@ router2.post("/login", async (req, res) => {
     return res.status(500).json({ error: "Login failed" });
   }
 });
+router2.post("/login/otp-request", async (req, res) => {
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  try {
+    const { email: email3 } = req.body;
+    if (!email3) return res.status(400).json({ error: "Email is required" });
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, is_verified: usersTable.is_verified }).from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
+    if (!user || !user.email) {
+      return res.status(200).json({ message: "If this email is registered, an OTP has been sent." });
+    }
+    if (await hasRecentOtp(user.email, "login")) {
+      return res.status(429).json({ error: "OTP already sent. Please wait 2 minutes before requesting another." });
+    }
+    const otp = generateOtp();
+    await storeOtp(user.email, "login", otp);
+    sendOtpEmail(user.email, otp, "login").catch(
+      (err) => console.error("[login otp email]", err?.message)
+    );
+    const masked = user.email.replace(/(.{2}).+(@.+)/, "$1***$2");
+    console.log(`[login otp] OTP sent to ${masked} from ${ip}`);
+    return res.status(200).json({ message: "OTP sent to your email.", email: user.email });
+  } catch (err) {
+    console.error("[login otp-request error]", err?.message || err);
+    return res.status(500).json({ error: "Failed to send OTP" });
+  }
+});
 router2.post("/login/verify", async (req, res) => {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   const ua = req.headers["user-agent"] || "";
   try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) return res.status(400).json({ error: "Phone and OTP required" });
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
+    const { phone, email: email3, otp } = req.body;
+    if (!otp) return res.status(400).json({ error: "OTP is required" });
+    let user;
+    if (email3) {
+      const [found] = await db.select().from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
+      user = found;
+    } else if (phone) {
+      const [found] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
+      user = found;
+    } else {
+      return res.status(400).json({ error: "Email or phone is required" });
+    }
     if (!user || !user.email) return res.status(404).json({ error: "User not found" });
     const result = await verifyOtp(user.email, "login", otp);
     if (!result.valid) return res.status(400).json({ error: result.error });
