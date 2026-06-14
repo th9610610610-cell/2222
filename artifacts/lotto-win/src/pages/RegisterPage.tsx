@@ -24,7 +24,7 @@ export default function RegisterPage() {
   const [, navigate] = useLocation()
   const { refresh } = useAuth()
   const [step, setStep] = useState<'form' | 'otp'>('form')
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '', password: '' })
+  const [form, setForm] = useState({ full_name: '', email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
@@ -131,11 +131,7 @@ export default function RegisterPage() {
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Email Address</label>
               <input type="email" value={form.email} onChange={e => inp('email', e.target.value)} placeholder="you@example.com" required style={inputStyle} />
-              <p style={{ color: '#555', fontSize: '11px', marginTop: '4px' }}>Verification code will be sent here</p>
-            </div>
-            <div>
-              <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Phone Number</label>
-              <input type="tel" value={form.phone} onChange={e => inp('phone', e.target.value)} placeholder="01XXXXXXXXX" required style={inputStyle} />
+              <p style={{ color: '#555', fontSize: '11px', marginTop: '4px' }}>Used for login and verification code</p>
             </div>
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Password</label>
@@ -155,6 +151,14 @@ export default function RegisterPage() {
               </div>
               <p style={{ color: '#555', fontSize: '11px', marginTop: '4px' }}>e.g. MyPass@123</p>
             </div>
+
+            {/* Optional phone notice */}
+            <div style={{ background: 'rgba(155,32,216,0.08)', border: '1px solid rgba(155,32,216,0.2)', borderRadius: '8px', padding: '10px 12px' }}>
+              <p style={{ color: '#8888aa', fontSize: '12px', margin: 0 }}>
+                📞 <strong style={{ color: '#aaa' }}>Phone number is optional.</strong> You can add it later from your profile for deposits &amp; withdrawals.
+              </p>
+            </div>
+
             <button type="submit" disabled={loading} style={btnStyle('linear-gradient(90deg, #f0a500, #e8187a)', loading)}>
               {loading ? '⏳ Sending code...' : 'Send Verification Code →'}
             </button>

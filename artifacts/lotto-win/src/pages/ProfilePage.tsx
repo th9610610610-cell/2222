@@ -4,22 +4,29 @@ import { useAuth } from '../lib/auth'
 import TopNav from '../components/TopNav'
 import BottomNav from '../components/BottomNav'
 import { formatCurrency } from '../lib/utils'
-
+import OtpInput, { OtpTimer } from '../components/OtpInput'
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
 type EditSection = 'name' | 'phone' | 'password' | 'totp-setup' | 'totp-disable' | null
+type PhoneStep = 'input' | 'otp'
 
 export default function ProfilePage() {
   const [, navigate] = useLocation()
   const { user, token, logout, refresh } = useAuth()
   const [editSection, setEditSection] = useState<EditSection>(null)
   const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
+
+  // Phone verification state
+  const [phoneInput, setPhoneInput] = useState('')
+  const [phoneStep, setPhoneStep] = useState<PhoneStep>('input')
+  const [phoneOtp, setPhoneOtp] = useState('')
+  const [phoneResendKey, setPhoneResendKey] = useState(0)
+  const [phoneLoading, setPhoneLoading] = useState(false)
 
   // TOTP state
   const [totpQr, setTotpQr] = useState<string>('')
@@ -31,15 +38,14 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!token) { navigate('/login'); return }
     setName(user?.full_name || '')
-    setPhone(user?.phone || '')
+    setPhoneInput((user as any)?.phone || '')
     setTotpEnabled(!!(user as any)?.totp_enabled)
-  }, [token, user?.full_name, user?.phone, (user as any)?.totp_enabled])
+  }, [token, user?.full_name, (user as any)?.phone, (user as any)?.totp_enabled])
 
-  const saveSection = async () => {
+  const saveNameOrPassword = async () => {
     setSaving(true); setMsg(null)
     const body: Record<string, string> = {}
     if (editSection === 'name') body.full_name = name
-    if (editSection === 'phone') body.phone = phone
     if (editSection === 'password') { body.current_password = currentPw; body.new_password = newPw }
     const res = await fetch(`${BASE}/api/user/me`, {
       method: 'PATCH',
@@ -50,6 +56,52 @@ export default function ProfilePage() {
     if (!res.ok) { setMsg({ text: data.error || 'Failed', ok: false }) }
     else { await refresh(); setMsg({ text: 'Updated!', ok: true }); setEditSection(null); setCurrentPw(''); setNewPw('') }
     setSaving(false)
+  }
+
+  // Phone — step 1: request OTP
+  const handlePhoneRequestOtp = async () => {
+    if (!phoneInput) { setMsg({ text: 'Enter a phone number', ok: false }); return }
+    setPhoneLoading(true); setMsg(null)
+    const res = await fetch(`${BASE}/api/user/phone/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ phone: phoneInput }),
+    })
+    const data = await res.json()
+    setPhoneLoading(false)
+    if (!res.ok) { setMsg({ text: data.error || 'Failed to send OTP', ok: false }); return }
+    setPhoneStep('otp')
+    setMsg({ text: 'OTP sent to your email to confirm phone update.', ok: true })
+  }
+
+  // Phone — step 2: verify OTP and save
+  const handlePhoneVerify = async () => {
+    if (phoneOtp.length < 6) { setMsg({ text: 'Enter the 6-digit OTP', ok: false }); return }
+    setPhoneLoading(true); setMsg(null)
+    const res = await fetch(`${BASE}/api/user/phone/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ phone: phoneInput, otp: phoneOtp }),
+    })
+    const data = await res.json()
+    setPhoneLoading(false)
+    if (!res.ok) { setMsg({ text: data.error || 'Verification failed', ok: false }); return }
+    await refresh()
+    setMsg({ text: '✅ Phone number saved!', ok: true })
+    setEditSection(null)
+    setPhoneStep('input')
+    setPhoneOtp('')
+  }
+
+  const handlePhoneResend = async () => {
+    setPhoneLoading(true)
+    await fetch(`${BASE}/api/user/phone/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ phone: phoneInput }),
+    })
+    setPhoneLoading(false)
+    setPhoneResendKey(k => k + 1)
   }
 
   const startTotpSetup = async () => {
@@ -98,11 +150,6 @@ export default function ProfilePage() {
 
   const handleLogout = () => { logout(); navigate('/login') }
   const initial = user?.full_name?.charAt(0).toUpperCase() || 'U'
-  const uid = user?.id ? parseInt(String(user.id), 10) : NaN
-  const accNumber = user?.id
-    ? `ACC#${!isNaN(uid) ? 1000 + uid : String(user.id).replace(/\D/g, '').slice(-4).padStart(4, '0')}`
-    : 'ACC#----'
-
   const isAdmin = ['admin', 'moderator'].includes(user?.role || '')
 
   const inputStyle: React.CSSProperties = {
@@ -140,8 +187,12 @@ export default function ProfilePage() {
             </div>
             <div style={{ flex: 1 }}>
               <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '18px', margin: '0 0 4px' }}>{user?.full_name}</h2>
-              <p style={{ color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>📞 {user?.phone}</p>
-              <p style={{ color: '#6060a0', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>{accNumber}</p>
+              <p style={{ color: '#8888aa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>
+                📧 {(user as any)?.email || '—'}
+              </p>
+              <p style={{ color: '#6060a0', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
+                {(user as any)?.phone ? `📞 ${(user as any).phone}` : '📞 No phone added'}
+              </p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -166,7 +217,6 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* Account Settings */}
         <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '14px', marginBottom: '10px' }}>Account Settings</p>
 
         {msg && (
@@ -190,27 +240,57 @@ export default function ProfilePage() {
           {editSection === 'name' && (
             <div style={{ marginTop: '14px' }}>
               <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" style={inputStyle} />
-              <button onClick={saveSection} disabled={saving} style={saveBtn(saving)}>{saving ? 'Saving…' : 'Save Name'}</button>
+              <button onClick={saveNameOrPassword} disabled={saving} style={saveBtn(saving)}>{saving ? 'Saving…' : 'Save Name'}</button>
             </div>
           )}
         </div>
 
-        {/* Phone */}
+        {/* Phone — with OTP verification */}
         <div style={editCardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEditSection(editSection === 'phone' ? null : 'phone')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            onClick={() => {
+              if (editSection === 'phone') { setEditSection(null); setPhoneStep('input'); setPhoneOtp('') }
+              else { setEditSection('phone'); setPhoneInput((user as any)?.phone || ''); setPhoneStep('input'); setMsg(null) }
+            }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '18px' }}>📞</span>
               <div>
                 <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#fff', fontSize: '14px' }}>Phone Number</p>
-                <p style={{ color: '#7878a8', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>{user?.phone}</p>
+                <p style={{ color: (user as any)?.phone ? '#7878a8' : '#e8187a', fontSize: '12px', fontFamily: 'Poppins, sans-serif' }}>
+                  {(user as any)?.phone || 'Not set — add for deposits & withdrawals'}
+                </p>
               </div>
             </div>
             <span style={{ color: '#22d3ee', fontSize: '18px' }}>{editSection === 'phone' ? '▲' : '▼'}</span>
           </div>
-          {editSection === 'phone' && (
+          {editSection === 'phone' && phoneStep === 'input' && (
             <div style={{ marginTop: '14px' }}>
-              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="01XXXXXXXXX" style={inputStyle} />
-              <button onClick={saveSection} disabled={saving} style={{ ...saveBtn(saving), background: 'linear-gradient(90deg,#22d3ee,#9b20d8)' }}>{saving ? 'Saving…' : 'Save Number'}</button>
+              <input
+                value={phoneInput}
+                onChange={e => setPhoneInput(e.target.value)}
+                placeholder="01XXXXXXXXX"
+                style={inputStyle}
+              />
+              <p style={{ color: '#555', fontSize: '11px', marginTop: '-8px', marginBottom: '10px' }}>An OTP will be sent to your email to confirm</p>
+              <button onClick={handlePhoneRequestOtp} disabled={phoneLoading || !phoneInput}
+                style={{ ...saveBtn(phoneLoading || !phoneInput), background: 'linear-gradient(90deg,#22d3ee,#9b20d8)' }}>
+                {phoneLoading ? 'Sending OTP…' : 'Send Verification OTP →'}
+              </button>
+            </div>
+          )}
+          {editSection === 'phone' && phoneStep === 'otp' && (
+            <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ color: '#aaa', fontSize: '13px', margin: 0 }}>Enter the OTP sent to your email to confirm adding <strong style={{ color: '#22d3ee' }}>{phoneInput}</strong></p>
+              <OtpInput value={phoneOtp} onChange={v => setPhoneOtp(v)} disabled={phoneLoading} />
+              <OtpTimer key={phoneResendKey} seconds={60} onResend={handlePhoneResend} loading={phoneLoading} />
+              <button onClick={handlePhoneVerify} disabled={phoneLoading || phoneOtp.length < 6}
+                style={saveBtn(phoneLoading || phoneOtp.length < 6)}>
+                {phoneLoading ? 'Verifying…' : 'Confirm & Save Phone'}
+              </button>
+              <button type="button" onClick={() => { setPhoneStep('input'); setPhoneOtp('') }}
+                style={{ background: 'none', border: 'none', color: '#8888aa', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}>
+                ← Change number
+              </button>
             </div>
           )}
         </div>
@@ -231,7 +311,7 @@ export default function ProfilePage() {
             <div style={{ marginTop: '14px' }}>
               <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} placeholder="Current password" style={inputStyle} />
               <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password (min 6 chars)" style={inputStyle} />
-              <button onClick={saveSection} disabled={saving || newPw.length < 6} style={saveBtn(saving || newPw.length < 6)}>{saving ? 'Saving…' : 'Change Password'}</button>
+              <button onClick={saveNameOrPassword} disabled={saving || newPw.length < 6} style={saveBtn(saving || newPw.length < 6)}>{saving ? 'Saving…' : 'Change Password'}</button>
             </div>
           )}
         </div>
@@ -261,8 +341,6 @@ export default function ProfilePage() {
                   </span>
               }
             </div>
-
-            {/* Setup: show QR + secret */}
             {editSection === 'totp-setup' && !totpEnabled && (
               <div style={{ marginTop: '16px' }}>
                 <p style={{ color: '#aaa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px', lineHeight: 1.6 }}>
@@ -282,28 +360,18 @@ export default function ProfilePage() {
                     Manual key: <span style={{ color: '#f0a500' }}>{totpSecret}</span>
                   </p>
                 )}
-                <input
-                  type="text" inputMode="numeric" maxLength={6}
-                  value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Enter 6-digit code" style={inputStyle}
-                />
+                <input type="text" inputMode="numeric" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))} placeholder="Enter 6-digit code" style={inputStyle} />
                 <button onClick={enableTotp} disabled={totpLoading || totpCode.length < 6} style={saveBtn(totpLoading || totpCode.length < 6)}>
                   {totpLoading ? 'Verifying…' : 'Confirm & Enable 2FA'}
                 </button>
               </div>
             )}
-
-            {/* Disable flow */}
             {editSection === 'totp-disable' && totpEnabled && (
               <div style={{ marginTop: '16px' }}>
                 <p style={{ color: '#aaa', fontSize: '13px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px' }}>
                   Enter the current code from your authenticator app to disable 2FA.
                 </p>
-                <input
-                  type="text" inputMode="numeric" maxLength={6}
-                  value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="6-digit authenticator code" style={inputStyle}
-                />
+                <input type="text" inputMode="numeric" maxLength={6} value={totpCode} onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))} placeholder="6-digit authenticator code" style={inputStyle} />
                 <button onClick={disableTotp} disabled={totpLoading || totpCode.length < 6}
                   style={{ ...saveBtn(totpLoading || totpCode.length < 6), background: 'rgba(232,24,122,0.8)' }}>
                   {totpLoading ? 'Disabling…' : 'Disable 2FA'}
@@ -334,7 +402,6 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* Sign Out */}
         <button onClick={handleLogout} style={{ width: '100%', padding: '15px', borderRadius: '50px', border: '1.5px solid rgba(232,24,122,0.4)', cursor: 'pointer', background: 'rgba(232,24,122,0.08)', color: '#e8187a', fontFamily: 'Poppins, sans-serif', fontSize: '15px', fontWeight: 700, marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="#e8187a" strokeWidth="2" strokeLinecap="round"/><path d="M16 17L21 12L16 7" stroke="#e8187a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M21 12H9" stroke="#e8187a" strokeWidth="2" strokeLinecap="round"/></svg>
           Sign Out

@@ -250,6 +250,9 @@ export async function runMigrations(connectionString: string): Promise<void> {
       )
     `)
 
+    // Feature: Phone optional — drop NOT NULL constraint
+    await client.query(`ALTER TABLE users ALTER COLUMN phone DROP NOT NULL`)
+
     // Feature: Database-backed OTP codes (replaces in-memory store)
     await client.query(`
       CREATE TABLE IF NOT EXISTS otp_codes (

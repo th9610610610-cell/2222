@@ -172,6 +172,10 @@ localPort = 8080
 externalPort = 8080
 
 [[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
 localPort = 19713
 externalPort = 80
 
@@ -187,11 +191,11 @@ SMTP_FROM = "Lotto Win <lottowinsbd@gmail.com>"
 
 [userenv.development]
 NODE_ENV = "development"
-ALLOWED_ORIGINS = "http://localhost:19713,https://08a50ac0-aeff-4b58-a654-f7d42b6f0aae-00-2jdgnengrwvqr.pike.replit.dev"
+ALLOWED_ORIGINS = "http://localhost:19713,https://08a50ac0-aeff-4b58-a654-f7d42b6f0aae-00-2jdgnengrwvqr.pike.replit.dev,https://lotto-wins.vercel.app"
 
 [userenv.production]
 NODE_ENV = "production"
-ALLOWED_ORIGINS = "https://08a50ac0-aeff-4b58-a654-f7d42b6f0aae-00-2jdgnengrwvqr.pike.replit.dev"
+ALLOWED_ORIGINS = "https://08a50ac0-aeff-4b58-a654-f7d42b6f0aae-00-2jdgnengrwvqr.pike.replit.dev,https://lotto-wins.vercel.app"
 
 [nix]
 channel = "stable-25_05"

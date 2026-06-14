@@ -11,12 +11,12 @@ const inputStyle: React.CSSProperties = {
   outline: 'none', boxSizing: 'border-box',
 }
 
-type Step = 'phone' | 'otp' | 'password' | 'done'
+type Step = 'email' | 'otp' | 'password' | 'done'
 
 export default function ForgotPasswordPage() {
   const [, navigate] = useLocation()
-  const [step, setStep] = useState<Step>('phone')
-  const [phone, setPhone] = useState('')
+  const [step, setStep] = useState<Step>('email')
+  const [email, setEmail] = useState('')
   const [maskedEmail, setMaskedEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -28,16 +28,16 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [resendKey, setResendKey] = useState(0)
 
-  const steps: Step[] = ['phone', 'otp', 'password', 'done']
+  const steps: Step[] = ['email', 'otp', 'password', 'done']
   const stepIdx = steps.indexOf(step)
-  const stepLabel = ['Phone', 'Verify', 'Password', 'Done']
+  const stepLabel = ['Email', 'Verify', 'Password', 'Done']
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/reset-password/request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     })
     const data = await res.json()
     setLoading(false)
@@ -50,14 +50,11 @@ export default function ForgotPasswordPage() {
     setError(''); setResendMsg(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/reset-password/request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     })
     const data = await res.json()
     setLoading(false)
-    if (!res.ok) {
-      setError(data.error || 'Could not resend OTP')
-      return
-    }
+    if (!res.ok) { setError(data.error || 'Could not resend OTP'); return }
     setResendMsg('OTP resent! Check your inbox.')
     setResendKey(k => k + 1)
   }
@@ -74,7 +71,7 @@ export default function ForgotPasswordPage() {
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/reset-password/confirm`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, otp, new_password: newPassword }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), otp, new_password: newPassword }),
     })
     const data = await res.json()
     setLoading(false)
@@ -110,12 +107,12 @@ export default function ForgotPasswordPage() {
         {error && <div style={{ background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f88', fontSize: '13px', marginBottom: '16px' }}>{error}</div>}
         {resendMsg && <div style={{ background: 'rgba(240,165,0,0.1)', border: '1px solid rgba(240,165,0,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f0a500', fontSize: '13px', marginBottom: '16px' }}>{resendMsg}</div>}
 
-        {step === 'phone' && (
+        {step === 'email' && (
           <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Registered Phone Number</label>
-              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="01XXXXXXXXX" required style={inputStyle} />
-              <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>OTP will be sent to your registered email</p>
+              <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Registered Email Address</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required style={inputStyle} />
+              <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>OTP will be sent to this email</p>
             </div>
             <button type="submit" disabled={loading} style={{
               width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
@@ -143,7 +140,8 @@ export default function ForgotPasswordPage() {
               <p style={{ color: '#8888aa', fontSize: '12px', marginTop: '6px' }}>Check spam/junk if not in inbox</p>
             </div>
             <OtpInput value={otp} onChange={v => { setOtp(v); setError('') }} disabled={loading} />
-            <OtpTimer key={resendKey} seconds={120} onResend={handleResend} loading={loading} />
+            <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
+            <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', marginTop: '-12px' }}>Code expires in 1 minute</p>
             <button type="submit" disabled={otp.length < 6} style={{
               width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
               cursor: otp.length < 6 ? 'not-allowed' : 'pointer',
@@ -152,9 +150,9 @@ export default function ForgotPasswordPage() {
             }}>
               Confirm Code →
             </button>
-            <button type="button" onClick={() => { setStep('phone'); setOtp(''); setError(''); setResendMsg('') }}
+            <button type="button" onClick={() => { setStep('email'); setOtp(''); setError(''); setResendMsg('') }}
               style={{ background: 'none', border: 'none', color: '#8888aa', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
-              ← Change phone number
+              ← Change email
             </button>
           </form>
         )}
@@ -200,7 +198,6 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
 
-            {/* Password strength hints */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {[
                 { label: '8+ chars', ok: newPassword.length >= 8 },

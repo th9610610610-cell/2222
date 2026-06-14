@@ -21,7 +21,7 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#])[A-Za-
 const registerSchema = z.object({
   full_name: z.string().min(2),
   email: z.string().email('Invalid email address'),
-  phone: z.string().regex(/^01[3-9]\d{8}$/, 'Invalid Bangladeshi phone number'),
+  phone: z.string().regex(/^01[3-9]\d{8}$/, 'Invalid Bangladeshi phone number').optional(),
   password: z.string().regex(
     PASSWORD_REGEX,
     'Password must be at least 8 characters with uppercase, lowercase, number, and special character'
@@ -29,7 +29,7 @@ const registerSchema = z.object({
 })
 
 const loginSchema = z.object({
-  phone: z.string(),
+  email: z.string().email(),
   password: z.string(),
 })
 
@@ -38,11 +38,13 @@ router.post('/register', async (req, res) => {
   try {
     const data = registerSchema.parse(req.body)
 
-    const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, data.phone))
-    if (existingPhone.length > 0) return res.status(400).json({ error: 'Phone number already registered' })
-
-    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, data.email))
+    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, data.email.trim().toLowerCase()))
     if (existingEmail.length > 0) return res.status(400).json({ error: 'Email already registered' })
+
+    if (data.phone) {
+      const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, data.phone))
+      if (existingPhone.length > 0) return res.status(400).json({ error: 'Phone number already registered' })
+    }
 
     if (await hasRecentOtp(data.email, 'register')) {
       return res.status(429).json({ error: 'OTP already sent. Please wait before requesting another.' })
@@ -69,23 +71,31 @@ router.post('/register', async (req, res) => {
 router.post('/register/verify', async (req, res) => {
   try {
     const { full_name, email, phone, password, otp } = req.body
-    if (!full_name || !email || !phone || !password || !otp) {
-      return res.status(400).json({ error: 'All fields are required' })
+    if (!full_name || !email || !password || !otp) {
+      return res.status(400).json({ error: 'Name, email, password and OTP are required' })
     }
 
-    const result = await verifyOtp(email, 'register', otp)
+    const result = await verifyOtp(email.trim().toLowerCase(), 'register', otp)
     if (!result.valid) return res.status(400).json({ error: result.error })
 
-    const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone))
-    if (existingPhone.length > 0) return res.status(400).json({ error: 'Phone number already registered' })
-
-    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email))
+    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase()))
     if (existingEmail.length > 0) return res.status(400).json({ error: 'Email already registered' })
 
+    if (phone) {
+      const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone))
+      if (existingPhone.length > 0) return res.status(400).json({ error: 'Phone number already registered' })
+    }
+
     const password_hash = await bcrypt.hash(password, 12)
-    const [user] = await db.insert(usersTable).values({
-      full_name, email, phone, password_hash, is_verified: true,
-    }).returning({ id: usersTable.id, full_name: usersTable.full_name, phone: usersTable.phone, email: usersTable.email, role: usersTable.role })
+    const insertData: any = {
+      full_name, email: email.trim().toLowerCase(), password_hash, is_verified: true,
+    }
+    if (phone) insertData.phone = phone
+
+    const [user] = await db.insert(usersTable).values(insertData).returning({
+      id: usersTable.id, full_name: usersTable.full_name, phone: usersTable.phone,
+      email: usersTable.email, role: usersTable.role
+    })
 
     const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
     return res.status(201).json({ user, token })
@@ -95,14 +105,14 @@ router.post('/register/verify', async (req, res) => {
   }
 })
 
-// Login — check credentials, lock after failures, send OTP if new device
+// Login — email + password
 router.post('/login', async (req, res) => {
   const ip = req.ip || req.socket.remoteAddress || 'unknown'
   const ua = req.headers['user-agent'] || ''
   try {
-    const { phone, password } = loginSchema.parse(req.body)
+    const { email, password } = loginSchema.parse(req.body)
 
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone))
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase()))
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
@@ -128,7 +138,6 @@ router.post('/login', async (req, res) => {
     // Reset failed attempts on success
     await db.update(usersTable).set({ failed_login_attempts: 0, locked_until: null }).where(eq(usersTable.id, user.id))
 
-    // Issue JWT directly — password is sufficient authentication
     const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
     const { password_hash: _, totp_secret: __, ...safeUser } = user
     await logLogin({ user_id: user.id, ip, user_agent: ua, success: true })
@@ -150,13 +159,12 @@ router.post('/login/otp-request', async (req, res) => {
     const [user] = await db.select({ id: usersTable.id, email: usersTable.email, is_verified: usersTable.is_verified })
       .from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase()))
 
-    // Always return success to prevent user enumeration
     if (!user || !user.email) {
       return res.status(200).json({ message: 'If this email is registered, an OTP has been sent.' })
     }
 
     if (await hasRecentOtp(user.email, 'login')) {
-      return res.status(429).json({ error: 'OTP already sent. Please wait 2 minutes before requesting another.' })
+      return res.status(429).json({ error: 'OTP already sent. Please wait 1 minute before requesting another.' })
     }
 
     const otp = generateOtp()
@@ -176,25 +184,16 @@ router.post('/login/otp-request', async (req, res) => {
   }
 })
 
-// Login OTP verify — accepts {email, otp} (OTP login) or {phone, otp} (legacy)
+// Login OTP verify
 router.post('/login/verify', async (req, res) => {
   const ip = req.ip || req.socket.remoteAddress || 'unknown'
   const ua = req.headers['user-agent'] || ''
   try {
-    const { phone, email, otp } = req.body
+    const { email, otp } = req.body
     if (!otp) return res.status(400).json({ error: 'OTP is required' })
+    if (!email) return res.status(400).json({ error: 'Email is required' })
 
-    let user: typeof usersTable.$inferSelect | undefined
-    if (email) {
-      const [found] = await db.select().from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase()))
-      user = found
-    } else if (phone) {
-      const [found] = await db.select().from(usersTable).where(eq(usersTable.phone, phone))
-      user = found
-    } else {
-      return res.status(400).json({ error: 'Email or phone is required' })
-    }
-
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase()))
     if (!user || !user.email) return res.status(404).json({ error: 'User not found' })
 
     const result = await verifyOtp(user.email, 'login', otp)
@@ -210,18 +209,19 @@ router.post('/login/verify', async (req, res) => {
   }
 })
 
-// Password reset — request OTP
+// Password reset — request OTP (by email)
 router.post('/reset-password/request', async (req, res) => {
   try {
-    const { phone } = req.body
-    if (!phone) return res.status(400).json({ error: 'Phone number required' })
+    const { email } = req.body
+    if (!email) return res.status(400).json({ error: 'Email address required' })
 
-    const [user] = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.phone, phone))
-    // Always return success to prevent user enumeration
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email })
+      .from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase()))
+
     if (!user || !user.email) return res.status(200).json({ message: 'If this account exists, a reset OTP has been sent.' })
 
     if (await hasRecentOtp(user.email, 'reset')) {
-      return res.status(429).json({ error: 'OTP already sent. Please wait 2 minutes before requesting another.' })
+      return res.status(429).json({ error: 'OTP already sent. Please wait 1 minute before requesting another.' })
     }
 
     const otp = generateOtp()
@@ -242,14 +242,15 @@ router.post('/reset-password/request', async (req, res) => {
 // Password reset — verify OTP and set new password
 router.post('/reset-password/confirm', async (req, res) => {
   try {
-    const { phone, otp, new_password } = req.body
-    if (!phone || !otp || !new_password) return res.status(400).json({ error: 'All fields required' })
+    const { email, otp, new_password } = req.body
+    if (!email || !otp || !new_password) return res.status(400).json({ error: 'All fields required' })
 
     if (!PASSWORD_REGEX.test(new_password)) {
       return res.status(400).json({ error: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character' })
     }
 
-    const [user] = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.phone, phone))
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email })
+      .from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase()))
     if (!user || !user.email) return res.status(404).json({ error: 'User not found' })
 
     const result = await verifyOtp(user.email, 'reset', otp)

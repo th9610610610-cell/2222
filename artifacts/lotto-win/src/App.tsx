@@ -1,6 +1,6 @@
-import { Switch, Route, Router as WouterRouter } from 'wouter'
+import { Switch, Route, Router as WouterRouter, useLocation } from 'wouter'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider } from './components/AuthProvider'
+import { AuthProvider, useAuth } from './components/AuthProvider'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -18,6 +18,19 @@ import NotFound from './pages/not-found'
 
 const queryClient = new QueryClient()
 
+function AdminGuard() {
+  const { user, token } = useAuth()
+  const [, navigate] = useLocation()
+  const verified = sessionStorage.getItem('lw_admin_verified') === '1'
+  const isAdmin = ['admin', 'moderator'].includes(user?.role || '')
+
+  if (!token || !isAdmin || !verified) {
+    navigate('/lw-secure-7x9k')
+    return null
+  }
+  return <AdminPage />
+}
+
 function Router() {
   return (
     <Switch>
@@ -33,7 +46,7 @@ function Router() {
       <Route path="/winner" component={WinnerPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/lw-secure-7x9k" component={AdminLoginPage} />
-      <Route path="/admin" component={AdminPage} />
+      <Route path="/admin" component={AdminGuard} />
       <Route component={NotFound} />
     </Switch>
   )

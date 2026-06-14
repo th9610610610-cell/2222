@@ -14,9 +14,9 @@ const inputStyle: React.CSSProperties = {
 export default function AdminLoginPage() {
   const [, navigate] = useLocation()
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials')
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [otpEmail, setOtpEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,31 +27,26 @@ export default function AdminLoginPage() {
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, password }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
     })
     const data = await res.json()
     setLoading(false)
     if (!res.ok) { setError(data.error || 'Login failed'); return }
 
-    if (data.requireOtp) {
-      setEmail(data.email || '')
-      setStep('otp')
-      return
-    }
-
-    // Legacy: direct token (no email set yet)
     if (!['admin', 'moderator'].includes(data.user?.role)) {
       setError('Access denied. Admin only.'); return
     }
+
     localStorage.setItem('lw_token', data.token)
+    sessionStorage.setItem('lw_admin_verified', '1')
     navigate('/admin')
   }
 
   const handleResend = async () => {
     setError(''); setLoading(true)
-    await fetch(`${BASE}/api/auth/login`, {
+    await fetch(`${BASE}/api/auth/login/otp-request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, password }),
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     })
     setLoading(false)
     setResendKey(k => k + 1)
@@ -63,7 +58,7 @@ export default function AdminLoginPage() {
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/login/verify`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, otp }),
+      body: JSON.stringify({ email: otpEmail, otp }),
     })
     const data = await res.json()
     setLoading(false)
@@ -72,10 +67,11 @@ export default function AdminLoginPage() {
       setError('Access denied. Admin only.'); return
     }
     localStorage.setItem('lw_token', data.token)
+    sessionStorage.setItem('lw_admin_verified', '1')
     navigate('/admin')
   }
 
-  const maskedEmail = email ? email.replace(/(.{2}).+(@.+)/, '$1***$2') : ''
+  const maskedEmail = otpEmail ? otpEmail.replace(/(.{2}).+(@.+)/, '$1***$2') : ''
 
   return (
     <div style={{ minHeight: '100vh', background: '#08071a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
@@ -93,8 +89,8 @@ export default function AdminLoginPage() {
         {step === 'credentials' && (
           <form onSubmit={handleCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Admin Phone</label>
-              <input type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="01XXXXXXXXX" required style={inputStyle} />
+              <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Admin Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@example.com" required style={inputStyle} />
             </div>
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Password</label>
@@ -125,6 +121,7 @@ export default function AdminLoginPage() {
             </div>
             <OtpInput value={otp} onChange={setOtp} disabled={loading} />
             <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
+            <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', marginTop: '-12px' }}>Code expires in 1 minute</p>
             <button type="submit" disabled={loading || otp.length < 6} style={{
               width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
               cursor: (loading || otp.length < 6) ? 'not-allowed' : 'pointer',

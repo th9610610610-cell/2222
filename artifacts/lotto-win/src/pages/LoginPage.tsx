@@ -30,14 +30,14 @@ export default function LoginPage() {
   const [mode, setMode] = useState<LoginMode>('password')
 
   // Password login state
-  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
   // OTP login state
   const [otpStep, setOtpStep] = useState<OtpStep>('email')
-  const [email, setEmail] = useState('')
-  const [otpEmail, setOtpEmail] = useState('')  // confirmed email after OTP sent
+  const [otpEmail, setOtpEmail] = useState('')
+  const [otpEmailConfirmed, setOtpEmailConfirmed] = useState('')
   const [otp, setOtp] = useState('')
   const [resendKey, setResendKey] = useState(0)
   const [resendMsg, setResendMsg] = useState('')
@@ -48,7 +48,7 @@ export default function LoginPage() {
 
   const switchMode = (m: LoginMode) => {
     setMode(m); setError(''); setResendMsg('')
-    setOtpStep('email'); setOtp(''); setEmail(''); setOtpEmail('')
+    setOtpStep('email'); setOtp(''); setOtpEmail(''); setOtpEmailConfirmed('')
   }
 
   // ── Password login ────────────────────────────────────────────────
@@ -57,7 +57,7 @@ export default function LoginPage() {
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, password }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
     })
     const data = await res.json()
     setLoading(false)
@@ -73,12 +73,12 @@ export default function LoginPage() {
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/login/otp-request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      body: JSON.stringify({ email: otpEmail.trim().toLowerCase() }),
     })
     const data = await res.json()
     setLoading(false)
     if (!res.ok) { setError(data.error || 'Failed to send OTP'); return }
-    setOtpEmail(data.email || email.trim().toLowerCase())
+    setOtpEmailConfirmed(data.email || otpEmail.trim().toLowerCase())
     setOtpStep('verify')
   }
 
@@ -87,7 +87,7 @@ export default function LoginPage() {
     setError(''); setResendMsg(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/login/otp-request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      body: JSON.stringify({ email: otpEmail.trim().toLowerCase() }),
     })
     const data = await res.json()
     setLoading(false)
@@ -103,7 +103,7 @@ export default function LoginPage() {
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/login/verify`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: otpEmail, otp }),
+      body: JSON.stringify({ email: otpEmailConfirmed, otp }),
     })
     const data = await res.json()
     setLoading(false)
@@ -113,7 +113,7 @@ export default function LoginPage() {
     navigate('/')
   }
 
-  const maskedOtpEmail = otpEmail ? otpEmail.replace(/(.{2}).+(@.+)/, '$1***$2') : ''
+  const maskedOtpEmail = otpEmailConfirmed ? otpEmailConfirmed.replace(/(.{2}).+(@.+)/, '$1***$2') : ''
 
   return (
     <div style={{ minHeight: '100vh', background: '#08071a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
@@ -162,11 +162,11 @@ export default function LoginPage() {
         {mode === 'password' && (
           <form onSubmit={handlePasswordLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Phone Number</label>
+              <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Email Address</label>
               <input
-                type="text" value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="01XXXXXXXXX" required style={inputStyle}
+                type="email" value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com" required style={inputStyle}
               />
             </div>
             <div>
@@ -203,8 +203,8 @@ export default function LoginPage() {
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Email Address</label>
               <input
-                type="email" value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="email" value={otpEmail}
+                onChange={e => setOtpEmail(e.target.value)}
                 placeholder="you@example.com" required style={inputStyle}
               />
             </div>
@@ -226,7 +226,8 @@ export default function LoginPage() {
               <p style={{ color: '#8888aa', fontSize: '12px', marginTop: '6px' }}>Check spam/junk folder if not in inbox</p>
             </div>
             <OtpInput value={otp} onChange={v => { setOtp(v); setError('') }} disabled={loading} />
-            <OtpTimer key={resendKey} seconds={120} onResend={handleResend} loading={loading} />
+            <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
+            <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', marginTop: '-12px' }}>Code expires in 1 minute</p>
             <button type="submit" disabled={loading || otp.length < 6} style={btnPrimary(loading || otp.length < 6)}>
               {loading ? 'Verifying...' : 'Verify & Sign In ✓'}
             </button>
