@@ -76175,7 +76175,7 @@ async function sendOtpEmail(to, otp, purpose) {
                   <div style="display:inline-block;background:#f8f0ff;border:2px solid #7c3aed;border-radius:12px;padding:20px 40px;margin:20px 0">
                     <span style="font-size:42px;font-weight:900;letter-spacing:12px;color:#7c3aed;font-family:monospace">${otp}</span>
                   </div>
-                  <p style="color:#666;font-size:14px;margin:0 0 4px">\u23F1\uFE0F This code expires in <strong>10 minutes</strong></p>
+                  <p style="color:#666;font-size:14px;margin:0 0 4px">\u23F1\uFE0F This code expires in <strong>1 minute</strong></p>
                   <p style="color:#999;font-size:13px;margin:0">Never share this code with anyone</p>
                 </td>
               </tr>
@@ -76192,7 +76192,7 @@ async function sendOtpEmail(to, otp, purpose) {
     `,
     text: `Your Lotto Win verification code is: ${otp}
 
-This code expires in 10 minutes. Never share it with anyone.`
+This code expires in 1 minute. Never share it with anyone.`
   });
   transporter.close();
 }
@@ -76300,9 +76300,12 @@ router2.post("/register", async (req, res) => {
     }
     const otp = generateOtp();
     await storeOtp(data.email, "register", otp);
-    sendOtpEmail(data.email, otp, "register").catch(
-      (err) => console.error("[register otp email]", err?.message)
-    );
+    try {
+      await sendOtpEmail(data.email, otp, "register");
+    } catch (emailErr) {
+      console.error("[register otp email failed]", emailErr?.message || emailErr);
+      return res.status(500).json({ error: "Failed to send OTP email. Please check your email address and try again." });
+    }
     return res.status(200).json({ message: "OTP sent to your email.", email: data.email });
   } catch (err) {
     if (err?.issues) return res.status(400).json({ error: err.issues[0]?.message || "Validation error" });
@@ -76386,9 +76389,12 @@ router2.post("/login/otp-request", async (req, res) => {
     }
     const otp = generateOtp();
     await storeOtp(user.email, "login", otp);
-    sendOtpEmail(user.email, otp, "login").catch(
-      (err) => console.error("[login otp email]", err?.message)
-    );
+    try {
+      await sendOtpEmail(user.email, otp, "login");
+    } catch (emailErr) {
+      console.error("[login otp email failed]", emailErr?.message || emailErr);
+      return res.status(500).json({ error: "Failed to send OTP email. Please try again." });
+    }
     const masked = user.email.replace(/(.{2}).+(@.+)/, "$1***$2");
     console.log(`[login otp] OTP sent to ${masked} from ${ip}`);
     return res.status(200).json({ message: "OTP sent to your email.", email: user.email });
@@ -76436,9 +76442,12 @@ router2.post("/reset-password/request", async (req, res) => {
     }
     const otp = generateOtp();
     await storeOtp(user.email, "reset", otp);
-    sendOtpEmail(user.email, otp, "reset").catch(
-      (err) => console.error("[reset otp email]", err?.message)
-    );
+    try {
+      await sendOtpEmail(user.email, otp, "reset");
+    } catch (emailErr) {
+      console.error("[reset otp email failed]", emailErr?.message || emailErr);
+      return res.status(500).json({ error: "Failed to send OTP email. Please try again." });
+    }
     return res.status(200).json({ message: "If this account exists, a reset OTP has been sent.", email: user.email });
   } catch (err) {
     console.error("[reset request error]", err?.message || err);

@@ -50,9 +50,12 @@ router.post('/register', async (req, res) => {
 
     const otp = generateOtp()
     await storeOtp(data.email, 'register', otp)
-    sendOtpEmail(data.email, otp, 'register').catch(err =>
-      console.error('[register otp email]', err?.message)
-    )
+    try {
+      await sendOtpEmail(data.email, otp, 'register')
+    } catch (emailErr: any) {
+      console.error('[register otp email failed]', emailErr?.message || emailErr)
+      return res.status(500).json({ error: 'Failed to send OTP email. Please check your email address and try again.' })
+    }
 
     return res.status(200).json({ message: 'OTP sent to your email.', email: data.email })
   } catch (err: any) {
@@ -158,9 +161,12 @@ router.post('/login/otp-request', async (req, res) => {
 
     const otp = generateOtp()
     await storeOtp(user.email, 'login', otp)
-    sendOtpEmail(user.email, otp, 'login').catch(err =>
-      console.error('[login otp email]', err?.message)
-    )
+    try {
+      await sendOtpEmail(user.email, otp, 'login')
+    } catch (emailErr: any) {
+      console.error('[login otp email failed]', emailErr?.message || emailErr)
+      return res.status(500).json({ error: 'Failed to send OTP email. Please try again.' })
+    }
     const masked = user.email.replace(/(.{2}).+(@.+)/, '$1***$2')
     console.log(`[login otp] OTP sent to ${masked} from ${ip}`)
     return res.status(200).json({ message: 'OTP sent to your email.', email: user.email })
@@ -220,10 +226,12 @@ router.post('/reset-password/request', async (req, res) => {
 
     const otp = generateOtp()
     await storeOtp(user.email, 'reset', otp)
-    // Fire email in background — respond immediately
-    sendOtpEmail(user.email, otp, 'reset').catch(err =>
-      console.error('[reset otp email]', err?.message)
-    )
+    try {
+      await sendOtpEmail(user.email, otp, 'reset')
+    } catch (emailErr: any) {
+      console.error('[reset otp email failed]', emailErr?.message || emailErr)
+      return res.status(500).json({ error: 'Failed to send OTP email. Please try again.' })
+    }
     return res.status(200).json({ message: 'If this account exists, a reset OTP has been sent.', email: user.email })
   } catch (err: any) {
     console.error('[reset request error]', err?.message || err)

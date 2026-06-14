@@ -62,7 +62,7 @@ export async function sendOtpEmail(to: string, otp: string, purpose: string): Pr
                   <div style="display:inline-block;background:#f8f0ff;border:2px solid #7c3aed;border-radius:12px;padding:20px 40px;margin:20px 0">
                     <span style="font-size:42px;font-weight:900;letter-spacing:12px;color:#7c3aed;font-family:monospace">${otp}</span>
                   </div>
-                  <p style="color:#666;font-size:14px;margin:0 0 4px">⏱️ This code expires in <strong>10 minutes</strong></p>
+                  <p style="color:#666;font-size:14px;margin:0 0 4px">⏱️ This code expires in <strong>1 minute</strong></p>
                   <p style="color:#999;font-size:13px;margin:0">Never share this code with anyone</p>
                 </td>
               </tr>
@@ -77,7 +77,7 @@ export async function sendOtpEmail(to: string, otp: string, purpose: string): Pr
       </body>
       </html>
     `,
-    text: `Your Lotto Win verification code is: ${otp}\n\nThis code expires in 10 minutes. Never share it with anyone.`,
+    text: `Your Lotto Win verification code is: ${otp}\n\nThis code expires in 1 minute. Never share it with anyone.`,
   })
   transporter.close()
 }
