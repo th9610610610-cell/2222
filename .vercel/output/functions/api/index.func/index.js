@@ -6,7 +6,11 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __export = (target, all) => {
   for (var name in all)
@@ -17355,9 +17359,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/formats.js
+// ../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/formats.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/formats.js"(exports2, module2) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -17381,9 +17385,9 @@ var require_formats = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/utils.js
+// ../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/utils.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/utils.js"(exports2, module2) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -17645,9 +17649,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/stringify.js
+// ../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/stringify.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/stringify.js"(exports2, module2) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -17733,7 +17737,7 @@ var require_stringify = __commonJS({
       }
       if (obj === null) {
         if (strictNullHandling) {
-          return encoder && !encodeValuesOnly ? encoder(prefix, defaults2.encoder, charset, "key", format) : prefix;
+          return formatter(encoder && !encodeValuesOnly ? encoder(prefix, defaults2.encoder, charset, "key", format) : prefix);
         }
         obj = "";
       }
@@ -17751,7 +17755,9 @@ var require_stringify = __commonJS({
       var objKeys;
       if (generateArrayPrefix === "comma" && isArray(obj)) {
         if (encodeValuesOnly && encoder) {
-          obj = utils.maybeMap(obj, encoder);
+          obj = utils.maybeMap(obj, function(v) {
+            return v == null ? v : encoder(v);
+          });
         }
         objKeys = [{ value: obj.length > 0 ? obj.join(",") || null : void 0 }];
       } else if (isArray(filter)) {
@@ -17889,6 +17895,9 @@ var require_stringify = __commonJS({
       var sideChannel = getSideChannel();
       for (var i = 0; i < objKeys.length; ++i) {
         var key = objKeys[i];
+        if (typeof key === "undefined" || key === null) {
+          continue;
+        }
         var value = obj[key];
         if (options.skipNulls && value === null) {
           continue;
@@ -17918,9 +17927,9 @@ var require_stringify = __commonJS({
       var prefix = options.addQueryPrefix === true ? "?" : "";
       if (options.charsetSentinel) {
         if (options.charset === "iso-8859-1") {
-          prefix += "utf8=%26%2310003%3B&";
+          prefix += "utf8=%26%2310003%3B" + options.delimiter;
         } else {
-          prefix += "utf8=%E2%9C%93&";
+          prefix += "utf8=%E2%9C%93" + options.delimiter;
         }
       }
       return joined.length > 0 ? prefix + joined : "";
@@ -17928,9 +17937,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/parse.js
+// ../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/parse.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/parse.js"(exports2, module2) {
     "use strict";
     var utils = require_utils2();
     var has = Object.prototype.hasOwnProperty;
@@ -18103,8 +18112,8 @@ var require_parse = __commonJS({
       }
       return leaf;
     };
-    var splitKeyIntoSegments = function splitKeyIntoSegments2(givenKey, options) {
-      var key = options.allowDots ? givenKey.replace(/\.([^.[]+)/g, "[$1]") : givenKey;
+    var splitKeyIntoSegments = function splitKeyIntoSegments2(originalKey, options) {
+      var key = options.allowDots ? originalKey.replace(/\.([^.[]+)/g, "[$1]") : originalKey;
       if (options.depth <= 0) {
         if (!options.plainObjects && has.call(Object.prototype, key)) {
           if (!options.allowPrototypes) {
@@ -18113,37 +18122,56 @@ var require_parse = __commonJS({
         }
         return [key];
       }
-      var brackets = /(\[[^[\]]*])/;
-      var child = /(\[[^[\]]*])/g;
-      var segment = brackets.exec(key);
-      var parent = segment ? key.slice(0, segment.index) : key;
-      var keys = [];
+      var segments = [];
+      var first = key.indexOf("[");
+      var parent = first >= 0 ? key.slice(0, first) : key;
       if (parent) {
         if (!options.plainObjects && has.call(Object.prototype, parent)) {
           if (!options.allowPrototypes) {
             return;
           }
         }
-        keys[keys.length] = parent;
+        segments[segments.length] = parent;
       }
-      var i = 0;
-      while ((segment = child.exec(key)) !== null && i < options.depth) {
-        i += 1;
-        var segmentContent = segment[1].slice(1, -1);
-        if (!options.plainObjects && has.call(Object.prototype, segmentContent)) {
-          if (!options.allowPrototypes) {
-            return;
+      var n = key.length;
+      var open = first;
+      var collected = 0;
+      while (open >= 0 && collected < options.depth) {
+        var level = 1;
+        var i = open + 1;
+        var close = -1;
+        while (i < n && close < 0) {
+          var cu = key.charCodeAt(i);
+          if (cu === 91) {
+            level += 1;
+          } else if (cu === 93) {
+            level -= 1;
+            if (level === 0) {
+              close = i;
+            }
           }
+          i += 1;
         }
-        keys[keys.length] = segment[1];
+        if (close < 0) {
+          segments[segments.length] = "[" + key.slice(open) + "]";
+          return segments;
+        }
+        var seg = key.slice(open, close + 1);
+        var content = seg.slice(1, -1);
+        if (!options.plainObjects && has.call(Object.prototype, content) && !options.allowPrototypes) {
+          return;
+        }
+        segments[segments.length] = seg;
+        collected += 1;
+        open = key.indexOf("[", close + 1);
       }
-      if (segment) {
+      if (open >= 0) {
         if (options.strictDepth === true) {
           throw new RangeError("Input depth exceeded depth option of " + options.depth + " and strictDepth is true");
         }
-        keys[keys.length] = "[" + key.slice(segment.index) + "]";
+        segments[segments.length] = "[" + key.slice(open) + "]";
       }
-      return keys;
+      return segments;
     };
     var parseKeys = function parseQueryStringKeys(givenKey, val, options, valuesParsed) {
       if (!givenKey) {
@@ -18227,9 +18255,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/index.js
+// ../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.1/node_modules/qs/lib/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.15.2/node_modules/qs/lib/index.js"(exports2, module2) {
     "use strict";
     var stringify = require_stringify();
     var parse3 = require_parse();
@@ -76091,45 +76119,82 @@ function getTransporter() {
   return import_nodemailer.default.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT) || 587,
-    secure: Number(process.env.SMTP_PORT) === 465,
+    secure: false,
+    requireTLS: true,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
-    }
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    pool: false,
+    connectionTimeout: 1e4,
+    greetingTimeout: 5e3,
+    socketTimeout: 1e4
   });
 }
 async function sendOtpEmail(to, otp, purpose) {
   const subjects = {
-    register: "Verify your Lotto Win account",
-    login: "Lotto Win login verification",
-    reset: "Reset your Lotto Win password",
-    withdraw: "Confirm your Lotto Win withdrawal",
-    sensitive: "Lotto Win security verification"
+    register: "\u{1F39F}\uFE0F Your Lotto Win verification code",
+    login: "\u{1F510} Your Lotto Win login code",
+    reset: "\u{1F511} Reset your Lotto Win password",
+    withdraw: "\u{1F4B8} Confirm your Lotto Win withdrawal",
+    sensitive: "\u{1F512} Lotto Win security code"
   };
   const labels = {
     register: "complete your registration",
-    login: "verify your new device login",
+    login: "verify your login",
     reset: "reset your password",
     withdraw: "confirm your withdrawal",
     sensitive: "verify this action"
   };
-  const subject = subjects[purpose] ?? "Lotto Win OTP";
+  const subject = subjects[purpose] ?? "\u{1F39F}\uFE0F Lotto Win OTP";
   const label = labels[purpose] ?? "verify";
-  await getTransporter().sendMail({
-    from: process.env.SMTP_FROM,
+  const transporter = getTransporter();
+  await transporter.sendMail({
+    from: `"Lotto Win" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:8px">
-        <h2 style="color:#1a1a2e;margin-bottom:8px">\u{1F39F}\uFE0F Lotto Win</h2>
-        <p style="color:#444">Use the code below to ${label}:</p>
-        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#7c3aed;text-align:center;padding:24px;background:#fff;border-radius:8px;margin:16px 0">${otp}</div>
-        <p style="color:#666;font-size:13px">This code expires in <strong>10 minutes</strong>. Never share it with anyone.</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-        <p style="color:#aaa;font-size:12px">If you did not request this, please ignore this email.</p>
-      </div>
-    `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+      <body style="margin:0;padding:0;background:#f4f4f8;font-family:Arial,sans-serif">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f8;padding:32px 0">
+          <tr><td align="center">
+            <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+              <tr>
+                <td style="background:linear-gradient(135deg,#7c3aed,#e8187a);padding:28px;text-align:center">
+                  <h1 style="margin:0;color:#fff;font-size:26px;font-weight:800;letter-spacing:1px">\u{1F39F}\uFE0F Lotto Win</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:36px 40px;text-align:center">
+                  <p style="color:#333;font-size:16px;margin:0 0 8px">Use this code to <strong>${label}</strong>:</p>
+                  <div style="display:inline-block;background:#f8f0ff;border:2px solid #7c3aed;border-radius:12px;padding:20px 40px;margin:20px 0">
+                    <span style="font-size:42px;font-weight:900;letter-spacing:12px;color:#7c3aed;font-family:monospace">${otp}</span>
+                  </div>
+                  <p style="color:#666;font-size:14px;margin:0 0 4px">\u23F1\uFE0F This code expires in <strong>10 minutes</strong></p>
+                  <p style="color:#999;font-size:13px;margin:0">Never share this code with anyone</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:#fafafa;padding:16px 40px;text-align:center;border-top:1px solid #eee">
+                  <p style="color:#bbb;font-size:12px;margin:0">If you didn't request this, you can safely ignore this email.</p>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+      </body>
+      </html>
+    `,
+    text: `Your Lotto Win verification code is: ${otp}
+
+This code expires in 10 minutes. Never share it with anyone.`
   });
+  transporter.close();
 }
 
 // src/lib/otp.ts
@@ -76231,14 +76296,14 @@ router2.post("/register", async (req, res) => {
     const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, data.email));
     if (existingEmail.length > 0) return res.status(400).json({ error: "Email already registered" });
     if (await hasRecentOtp(data.email, "register")) {
-      return res.status(429).json({ error: "OTP already sent. Please wait 2 minutes before requesting another." });
+      return res.status(429).json({ error: "OTP already sent. Please wait before requesting another." });
     }
     const otp = generateOtp();
     await storeOtp(data.email, "register", otp);
     sendOtpEmail(data.email, otp, "register").catch(
       (err) => console.error("[register otp email]", err?.message)
     );
-    return res.status(200).json({ message: "OTP sent to your email. Please verify to complete registration.", email: data.email });
+    return res.status(200).json({ message: "OTP sent to your email.", email: data.email });
   } catch (err) {
     if (err?.issues) return res.status(400).json({ error: err.issues[0]?.message || "Validation error" });
     console.error("[register error]", err?.message || err);

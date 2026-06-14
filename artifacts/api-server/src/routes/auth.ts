@@ -33,7 +33,7 @@ const loginSchema = z.object({
   password: z.string(),
 })
 
-// Register — create account directly, no OTP required
+// Step 1: Register — validate and send OTP
 router.post('/register', async (req, res) => {
   try {
     const data = registerSchema.parse(req.body)
@@ -44,17 +44,51 @@ router.post('/register', async (req, res) => {
     const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, data.email))
     if (existingEmail.length > 0) return res.status(400).json({ error: 'Email already registered' })
 
-    const password_hash = await bcrypt.hash(data.password, 12)
+    if (await hasRecentOtp(data.email, 'register')) {
+      return res.status(429).json({ error: 'OTP already sent. Please wait before requesting another.' })
+    }
+
+    const otp = generateOtp()
+    await storeOtp(data.email, 'register', otp)
+    sendOtpEmail(data.email, otp, 'register').catch(err =>
+      console.error('[register otp email]', err?.message)
+    )
+
+    return res.status(200).json({ message: 'OTP sent to your email.', email: data.email })
+  } catch (err: any) {
+    if (err?.issues) return res.status(400).json({ error: err.issues[0]?.message || 'Validation error' })
+    console.error('[register error]', err?.message || err)
+    return res.status(500).json({ error: 'Registration failed' })
+  }
+})
+
+// Step 2: Verify OTP and create account
+router.post('/register/verify', async (req, res) => {
+  try {
+    const { full_name, email, phone, password, otp } = req.body
+    if (!full_name || !email || !phone || !password || !otp) {
+      return res.status(400).json({ error: 'All fields are required' })
+    }
+
+    const result = await verifyOtp(email, 'register', otp)
+    if (!result.valid) return res.status(400).json({ error: result.error })
+
+    const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone))
+    if (existingPhone.length > 0) return res.status(400).json({ error: 'Phone number already registered' })
+
+    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email))
+    if (existingEmail.length > 0) return res.status(400).json({ error: 'Email already registered' })
+
+    const password_hash = await bcrypt.hash(password, 12)
     const [user] = await db.insert(usersTable).values({
-      full_name: data.full_name, email: data.email, phone: data.phone, password_hash, is_verified: true,
+      full_name, email, phone, password_hash, is_verified: true,
     }).returning({ id: usersTable.id, full_name: usersTable.full_name, phone: usersTable.phone, email: usersTable.email, role: usersTable.role })
 
     const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
     return res.status(201).json({ user, token })
   } catch (err: any) {
-    if (err?.issues) return res.status(400).json({ error: err.issues[0]?.message || 'Validation error' })
-    console.error('[register error]', err?.message || err)
-    return res.status(500).json({ error: 'Registration failed' })
+    console.error('[register verify error]', err?.message || err)
+    return res.status(500).json({ error: 'Verification failed' })
   }
 })
 

@@ -8,7 +8,7 @@
     "--yes",
     "--token=REDACTED"
   ],
-  "cliVersion": "54.12.2",
+  "cliVersion": "54.13.0",
   "builds": [
     {
       "require": "@vercel/static-build",

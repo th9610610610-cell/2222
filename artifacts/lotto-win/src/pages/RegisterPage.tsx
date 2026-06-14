@@ -28,7 +28,6 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [resendKey, setResendKey] = useState(0)
   const [resendMsg, setResendMsg] = useState('')
@@ -37,7 +36,7 @@ export default function RegisterPage() {
 
   const handleSendOtp = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    setError(''); setSuccess(''); setLoading(true)
+    setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase() }),
@@ -56,34 +55,27 @@ export default function RegisterPage() {
     })
     const data = await res.json()
     setLoading(false)
-    if (!res.ok) {
-      setError(data.error || 'Could not resend OTP')
-      return
-    }
-    setResendMsg('OTP resent! Check your inbox.')
+    if (!res.ok) { setError(data.error || 'Could not resend OTP'); return }
+    setResendMsg('New code sent! Check your inbox.')
     setResendKey(k => k + 1)
   }
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (otp.length < 6) { setError('Enter the 6-digit OTP'); return }
+  const handleVerify = async (otpVal?: string) => {
+    const code = otpVal ?? otp
+    if (code.length < 6) { setError('Enter the 6-digit code'); return }
     setError(''); setLoading(true)
     const res = await fetch(`${BASE}/api/auth/register/verify`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase(), otp }),
+      body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase(), otp: code }),
     })
     const data = await res.json()
     setLoading(false)
     if (!res.ok) { setError(data.error || 'Verification failed'); return }
-    // Auto-login if token returned
     if (data.token) {
       localStorage.setItem('lw_token', data.token)
       await refresh()
       navigate('/')
-      return
     }
-    setSuccess('Account created! Redirecting to login...')
-    setTimeout(() => navigate('/login'), 1500)
   }
 
   const maskedEmail = form.email
@@ -92,13 +84,13 @@ export default function RegisterPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#08071a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-      <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+      <div style={{ marginBottom: '24px', textAlign: 'center' }}>
         <span style={{ fontSize: '36px' }}>♛</span>
         <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '26px', fontWeight: 800, background: 'linear-gradient(90deg, #f0a500, #e8187a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '8px 0 4px' }}>
           {step === 'form' ? 'Create Account' : 'Verify Email'}
         </h1>
         <p style={{ color: '#8888aa', fontSize: '14px' }}>
-          {step === 'form' ? 'Join Lotto Win today' : `OTP sent to ${maskedEmail}`}
+          {step === 'form' ? 'Join Lotto Win today' : `Code sent to ${maskedEmail}`}
         </p>
       </div>
 
@@ -119,9 +111,16 @@ export default function RegisterPage() {
       </div>
 
       <div style={{ width: '100%', maxWidth: '380px', background: '#100f28', borderRadius: '16px', border: '1px solid rgba(155,32,216,0.2)', padding: '28px 24px' }}>
-        {error && <div style={{ background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f88', fontSize: '13px', marginBottom: '16px' }}>{error}</div>}
-        {success && <div style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#6ee7a0', fontSize: '13px', marginBottom: '16px' }}>{success}</div>}
-        {resendMsg && <div style={{ background: 'rgba(240,165,0,0.1)', border: '1px solid rgba(240,165,0,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f0a500', fontSize: '13px', marginBottom: '16px' }}>{resendMsg}</div>}
+        {error && (
+          <div style={{ background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f88', fontSize: '13px', marginBottom: '16px' }}>
+            {error}
+          </div>
+        )}
+        {resendMsg && (
+          <div style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#6ee7a0', fontSize: '13px', marginBottom: '16px' }}>
+            ✅ {resendMsg}
+          </div>
+        )}
 
         {step === 'form' && (
           <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -132,7 +131,7 @@ export default function RegisterPage() {
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Email Address</label>
               <input type="email" value={form.email} onChange={e => inp('email', e.target.value)} placeholder="you@example.com" required style={inputStyle} />
-              <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>OTP will be sent here for verification</p>
+              <p style={{ color: '#555', fontSize: '11px', marginTop: '4px' }}>Verification code will be sent here</p>
             </div>
             <div>
               <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Phone Number</label>
@@ -149,42 +148,55 @@ export default function RegisterPage() {
                   required
                   style={{ ...inputStyle, paddingRight: '42px' }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#8888aa', cursor: 'pointer', fontSize: '16px', padding: '2px' }}
-                >
+                <button type="button" onClick={() => setShowPassword(v => !v)}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#8888aa', cursor: 'pointer', fontSize: '16px', padding: '2px' }}>
                   {showPassword ? '🙈' : '👁️'}
                 </button>
               </div>
-              <p style={{ color: '#666', fontSize: '11px', marginTop: '4px' }}>e.g. MyPass@123</p>
+              <p style={{ color: '#555', fontSize: '11px', marginTop: '4px' }}>e.g. MyPass@123</p>
             </div>
             <button type="submit" disabled={loading} style={btnStyle('linear-gradient(90deg, #f0a500, #e8187a)', loading)}>
-              {loading ? 'Sending OTP...' : 'Send Verification OTP →'}
+              {loading ? '⏳ Sending code...' : 'Send Verification Code →'}
             </button>
           </form>
         )}
 
         {step === 'otp' && (
-          <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '8px' }}>📧</div>
-              <p style={{ color: '#ccc', fontSize: '14px', lineHeight: 1.6 }}>
+              <div style={{ fontSize: '48px', marginBottom: '8px' }}>📨</div>
+              <p style={{ color: '#ccc', fontSize: '15px', lineHeight: 1.6, margin: 0 }}>
                 Enter the 6-digit code sent to<br />
                 <strong style={{ color: '#f0a500' }}>{maskedEmail}</strong>
               </p>
-              <p style={{ color: '#8888aa', fontSize: '12px', marginTop: '6px' }}>Check spam/junk folder if not in inbox</p>
+              <p style={{ color: '#555', fontSize: '12px', marginTop: '6px' }}>
+                Not in inbox? Check your <strong style={{ color: '#888' }}>spam/junk</strong> folder
+              </p>
             </div>
-            <OtpInput value={otp} onChange={v => { setOtp(v); setError('') }} disabled={loading} />
-            <OtpTimer key={resendKey} seconds={120} onResend={handleResend} loading={loading} />
-            <button type="submit" disabled={loading || otp.length < 6} style={btnStyle('linear-gradient(90deg, #f0a500, #e8187a)', loading || otp.length < 6)}>
-              {loading ? 'Verifying...' : 'Verify & Create Account ✓'}
+
+            <OtpInput
+              value={otp}
+              onChange={v => { setOtp(v); setError('') }}
+              onComplete={val => handleVerify(val)}
+              disabled={loading}
+            />
+
+            <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
+
+            <button
+              type="button"
+              onClick={() => handleVerify()}
+              disabled={loading || otp.length < 6}
+              style={btnStyle('linear-gradient(90deg, #f0a500, #e8187a)', loading || otp.length < 6)}
+            >
+              {loading ? '⏳ Verifying...' : 'Verify & Create Account ✓'}
             </button>
+
             <button type="button" onClick={() => { setStep('form'); setOtp(''); setError(''); setResendMsg('') }}
               style={{ background: 'none', border: 'none', color: '#8888aa', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
               ← Change details
             </button>
-          </form>
+          </div>
         )}
 
         {step === 'form' && (
