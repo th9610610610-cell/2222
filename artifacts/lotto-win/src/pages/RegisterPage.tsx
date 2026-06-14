@@ -182,6 +182,7 @@ export default function RegisterPage() {
             />
 
             <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
+            <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', marginTop: '-12px' }}>Code expires in 1 minute</p>
 
             <button
               type="button"

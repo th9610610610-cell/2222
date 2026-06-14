@@ -2,8 +2,8 @@ import crypto from 'crypto'
 import { db, otpCodesTable } from '@workspace/db'
 import { and, eq, gt, lt } from 'drizzle-orm'
 
-const OTP_VALID_MS = 10 * 60 * 1000   // 10 minutes validity
-const OTP_RESEND_MS = 2 * 60 * 1000   // 2 minutes cooldown before resend allowed
+const OTP_VALID_MS = 1 * 60 * 1000    // 1 minute validity
+const OTP_RESEND_MS = 1 * 60 * 1000   // 1 minute cooldown before resend allowed
 const MAX_ATTEMPTS = 5
 
 export function generateOtp(): string {
