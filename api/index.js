@@ -55583,6 +55583,7 @@ async function runMigrations(connectionString) {
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
+    await client.query(`ALTER TABLE users ALTER COLUMN phone DROP NOT NULL`);
     await client.query(`
       CREATE TABLE IF NOT EXISTS otp_codes (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -74136,7 +74137,7 @@ var usersTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   full_name: text("full_name").notNull(),
   email: text("email").unique(),
-  phone: text("phone").notNull().unique(),
+  phone: text("phone").unique(),
   password_hash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("user"),
   balance: integer("balance").notNull().default(0),
@@ -76278,23 +76279,25 @@ var PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#])[A-Za-z\
 var registerSchema = external_exports.object({
   full_name: external_exports.string().min(2),
   email: external_exports.string().email("Invalid email address"),
-  phone: external_exports.string().regex(/^01[3-9]\d{8}$/, "Invalid Bangladeshi phone number"),
+  phone: external_exports.string().regex(/^01[3-9]\d{8}$/, "Invalid Bangladeshi phone number").optional(),
   password: external_exports.string().regex(
     PASSWORD_REGEX,
     "Password must be at least 8 characters with uppercase, lowercase, number, and special character"
   )
 });
 var loginSchema = external_exports.object({
-  phone: external_exports.string(),
+  email: external_exports.string().email(),
   password: external_exports.string()
 });
 router2.post("/register", async (req, res) => {
   try {
     const data = registerSchema.parse(req.body);
-    const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, data.phone));
-    if (existingPhone.length > 0) return res.status(400).json({ error: "Phone number already registered" });
-    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, data.email));
+    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, data.email.trim().toLowerCase()));
     if (existingEmail.length > 0) return res.status(400).json({ error: "Email already registered" });
+    if (data.phone) {
+      const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, data.phone));
+      if (existingPhone.length > 0) return res.status(400).json({ error: "Phone number already registered" });
+    }
     if (await hasRecentOtp(data.email, "register")) {
       return res.status(429).json({ error: "OTP already sent. Please wait before requesting another." });
     }
@@ -76316,23 +76319,32 @@ router2.post("/register", async (req, res) => {
 router2.post("/register/verify", async (req, res) => {
   try {
     const { full_name, email: email3, phone, password, otp } = req.body;
-    if (!full_name || !email3 || !phone || !password || !otp) {
-      return res.status(400).json({ error: "All fields are required" });
+    if (!full_name || !email3 || !password || !otp) {
+      return res.status(400).json({ error: "Name, email, password and OTP are required" });
     }
-    const result = await verifyOtp(email3, "register", otp);
+    const result = await verifyOtp(email3.trim().toLowerCase(), "register", otp);
     if (!result.valid) return res.status(400).json({ error: result.error });
-    const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone));
-    if (existingPhone.length > 0) return res.status(400).json({ error: "Phone number already registered" });
-    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email3));
+    const existingEmail = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
     if (existingEmail.length > 0) return res.status(400).json({ error: "Email already registered" });
+    if (phone) {
+      const existingPhone = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone));
+      if (existingPhone.length > 0) return res.status(400).json({ error: "Phone number already registered" });
+    }
     const password_hash = await bcryptjs_default.hash(password, 12);
-    const [user] = await db.insert(usersTable).values({
+    const insertData = {
       full_name,
-      email: email3,
-      phone,
+      email: email3.trim().toLowerCase(),
       password_hash,
       is_verified: true
-    }).returning({ id: usersTable.id, full_name: usersTable.full_name, phone: usersTable.phone, email: usersTable.email, role: usersTable.role });
+    };
+    if (phone) insertData.phone = phone;
+    const [user] = await db.insert(usersTable).values(insertData).returning({
+      id: usersTable.id,
+      full_name: usersTable.full_name,
+      phone: usersTable.phone,
+      email: usersTable.email,
+      role: usersTable.role
+    });
     const token = import_jsonwebtoken.default.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: "30d" });
     return res.status(201).json({ user, token });
   } catch (err) {
@@ -76344,8 +76356,8 @@ router2.post("/login", async (req, res) => {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   const ua = req.headers["user-agent"] || "";
   try {
-    const { phone, password } = loginSchema.parse(req.body);
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
+    const { email: email3, password } = loginSchema.parse(req.body);
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
@@ -76385,7 +76397,7 @@ router2.post("/login/otp-request", async (req, res) => {
       return res.status(200).json({ message: "If this email is registered, an OTP has been sent." });
     }
     if (await hasRecentOtp(user.email, "login")) {
-      return res.status(429).json({ error: "OTP already sent. Please wait 2 minutes before requesting another." });
+      return res.status(429).json({ error: "OTP already sent. Please wait 1 minute before requesting another." });
     }
     const otp = generateOtp();
     await storeOtp(user.email, "login", otp);
@@ -76407,18 +76419,10 @@ router2.post("/login/verify", async (req, res) => {
   const ip = req.ip || req.socket.remoteAddress || "unknown";
   const ua = req.headers["user-agent"] || "";
   try {
-    const { phone, email: email3, otp } = req.body;
+    const { email: email3, otp } = req.body;
     if (!otp) return res.status(400).json({ error: "OTP is required" });
-    let user;
-    if (email3) {
-      const [found] = await db.select().from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
-      user = found;
-    } else if (phone) {
-      const [found] = await db.select().from(usersTable).where(eq(usersTable.phone, phone));
-      user = found;
-    } else {
-      return res.status(400).json({ error: "Email or phone is required" });
-    }
+    if (!email3) return res.status(400).json({ error: "Email is required" });
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
     if (!user || !user.email) return res.status(404).json({ error: "User not found" });
     const result = await verifyOtp(user.email, "login", otp);
     if (!result.valid) return res.status(400).json({ error: result.error });
@@ -76433,12 +76437,12 @@ router2.post("/login/verify", async (req, res) => {
 });
 router2.post("/reset-password/request", async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) return res.status(400).json({ error: "Phone number required" });
-    const [user] = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.phone, phone));
+    const { email: email3 } = req.body;
+    if (!email3) return res.status(400).json({ error: "Email address required" });
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
     if (!user || !user.email) return res.status(200).json({ message: "If this account exists, a reset OTP has been sent." });
     if (await hasRecentOtp(user.email, "reset")) {
-      return res.status(429).json({ error: "OTP already sent. Please wait 2 minutes before requesting another." });
+      return res.status(429).json({ error: "OTP already sent. Please wait 1 minute before requesting another." });
     }
     const otp = generateOtp();
     await storeOtp(user.email, "reset", otp);
@@ -76456,12 +76460,12 @@ router2.post("/reset-password/request", async (req, res) => {
 });
 router2.post("/reset-password/confirm", async (req, res) => {
   try {
-    const { phone, otp, new_password } = req.body;
-    if (!phone || !otp || !new_password) return res.status(400).json({ error: "All fields required" });
+    const { email: email3, otp, new_password } = req.body;
+    if (!email3 || !otp || !new_password) return res.status(400).json({ error: "All fields required" });
     if (!PASSWORD_REGEX.test(new_password)) {
       return res.status(400).json({ error: "Password must be at least 8 characters with uppercase, lowercase, number, and special character" });
     }
-    const [user] = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.phone, phone));
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.email, email3.trim().toLowerCase()));
     if (!user || !user.email) return res.status(404).json({ error: "User not found" });
     const result = await verifyOtp(user.email, "reset", otp);
     if (!result.valid) return res.status(400).json({ error: result.error });
@@ -76835,21 +76839,22 @@ router6.get("/me", requireAuth, async (req, res) => {
     id: usersTable.id,
     full_name: usersTable.full_name,
     phone: usersTable.phone,
+    email: usersTable.email,
     role: usersTable.role,
     balance: usersTable.balance,
     total_deposited: usersTable.total_deposited,
     total_won: usersTable.total_won,
     tickets_bought: usersTable.tickets_bought,
     is_flagged: usersTable.is_flagged,
+    totp_enabled: usersTable.totp_enabled,
     created_at: usersTable.created_at
   }).from(usersTable).where(eq(usersTable.id, req.user.id));
   res.json({ user });
 });
 router6.patch("/me", requireAuth, async (req, res) => {
-  const { full_name, phone, new_password, current_password } = req.body;
+  const { full_name, new_password, current_password } = req.body;
   const updates = {};
   if (full_name) updates.full_name = full_name;
-  if (phone) updates.phone = phone;
   if (new_password) {
     if (!current_password) return res.status(400).json({ error: "Current password is required" });
     const [existing] = await db.select({ password_hash: usersTable.password_hash }).from(usersTable).where(eq(usersTable.id, req.user.id));
@@ -76857,14 +76862,68 @@ router6.patch("/me", requireAuth, async (req, res) => {
     if (!valid) return res.status(400).json({ error: "Current password is incorrect" });
     updates.password_hash = await bcryptjs_default.hash(new_password, 10);
   }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: "No valid fields to update" });
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.user.id)).returning({
     id: usersTable.id,
     full_name: usersTable.full_name,
     phone: usersTable.phone,
+    email: usersTable.email,
     role: usersTable.role,
     balance: usersTable.balance
   });
   res.json({ user });
+});
+router6.post("/phone/request", requireAuth, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: "Phone number is required" });
+    const PHONE_REGEX = /^01[3-9]\d{8}$/;
+    if (!PHONE_REGEX.test(phone)) {
+      return res.status(400).json({ error: "Invalid Bangladeshi phone number (e.g. 01XXXXXXXXX)" });
+    }
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone));
+    if (existing && existing.id !== req.user.id) {
+      return res.status(400).json({ error: "Phone number already in use" });
+    }
+    const [me] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, req.user.id));
+    if (!me?.email) return res.status(400).json({ error: "No email on file to send OTP" });
+    if (await hasRecentOtp(me.email, "phone")) {
+      return res.status(429).json({ error: "OTP already sent. Please wait 1 minute." });
+    }
+    const otp = generateOtp();
+    await storeOtp(me.email, "phone", otp);
+    await sendOtpEmail(me.email, otp, "sensitive");
+    return res.json({ message: "OTP sent to your email to confirm phone update.", email: me.email });
+  } catch (err) {
+    console.error("[phone request error]", err?.message || err);
+    return res.status(500).json({ error: "Failed to send OTP" });
+  }
+});
+router6.post("/phone/verify", requireAuth, async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ error: "Phone and OTP are required" });
+    const [me] = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, req.user.id));
+    if (!me?.email) return res.status(400).json({ error: "User not found" });
+    const result = await verifyOtp(me.email, "phone", otp);
+    if (!result.valid) return res.status(400).json({ error: result.error });
+    const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.phone, phone));
+    if (existing && existing.id !== req.user.id) {
+      return res.status(400).json({ error: "Phone number already in use" });
+    }
+    const [user] = await db.update(usersTable).set({ phone }).where(eq(usersTable.id, req.user.id)).returning({
+      id: usersTable.id,
+      full_name: usersTable.full_name,
+      phone: usersTable.phone,
+      email: usersTable.email,
+      role: usersTable.role,
+      balance: usersTable.balance
+    });
+    res.json({ user, message: "Phone number updated successfully." });
+  } catch (err) {
+    console.error("[phone verify error]", err?.message || err);
+    return res.status(500).json({ error: "Phone verification failed" });
+  }
 });
 router6.get("/notifications", requireAuth, async (req, res) => {
   const notifications = await db.select().from(notificationsTable).where(eq(notificationsTable.user_id, req.user.id)).orderBy(desc(notificationsTable.created_at)).limit(20);
