@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLocation } from 'wouter'
+import { useAuth } from '../lib/auth'
 import { API_BASE } from '../lib/apiBase'
 import OtpInput, { OtpTimer } from '../components/OtpInput'
 
@@ -13,6 +14,7 @@ const inputStyle: React.CSSProperties = {
 
 export default function AdminLoginPage() {
   const [, navigate] = useLocation()
+  const { refresh } = useAuth()
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -39,6 +41,7 @@ export default function AdminLoginPage() {
 
     localStorage.setItem('lw_token', data.token)
     sessionStorage.setItem('lw_admin_verified', '1')
+    await refresh()
     navigate('/admin')
   }
 
@@ -68,6 +71,7 @@ export default function AdminLoginPage() {
     }
     localStorage.setItem('lw_token', data.token)
     sessionStorage.setItem('lw_admin_verified', '1')
+    await refresh()
     navigate('/admin')
   }
 

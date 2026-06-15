@@ -681,10 +681,12 @@ export default function AdminPage() {
                       {ad.is_active ? 'Hide' : 'Show'}
                     </button>
                     <button onClick={async () => {
-                      await fetch(`${BASE}/api/ads/${ad.id}`, { method: 'DELETE', headers })
-                      setMsg('Ad deleted'); loadAll()
+                      if (!window.confirm(`Delete this ad?\n\n"${ad.title || ad.content.slice(0, 60)}"\n\nThis cannot be undone.`)) return
+                      const r = await fetch(`${BASE}/api/ads/${ad.id}`, { method: 'DELETE', headers })
+                      if (r.ok) { setMsg('✅ Ad deleted'); loadAll() }
+                      else { setMsg('❌ Failed to delete ad') }
                     }} style={{ padding: '5px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.15)', color: '#e8187a', fontSize: '12px', fontWeight: 600 }}>
-                      🗑
+                      🗑 Delete
                     </button>
                   </div>
                 </div>
