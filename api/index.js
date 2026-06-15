@@ -76200,8 +76200,8 @@ This code expires in 1 minute. Never share it with anyone.`
 
 // src/lib/otp.ts
 var import_crypto2 = __toESM(require("crypto"), 1);
-var OTP_VALID_MS = 1 * 60 * 1e3;
-var OTP_RESEND_MS = 1 * 60 * 1e3;
+var OTP_VALID_MS = 5 * 60 * 1e3;
+var OTP_RESEND_MS = 60 * 1e3;
 var MAX_ATTEMPTS = 5;
 function generateOtp() {
   return String(import_crypto2.default.randomInt(1e5, 999999));

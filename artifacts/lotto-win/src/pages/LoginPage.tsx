@@ -45,6 +45,7 @@ export default function LoginPage() {
   // Shared
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [failedAttempts, setFailedAttempts] = useState(0)
 
   const switchMode = (m: LoginMode) => {
     setMode(m); setError(''); setResendMsg('')
@@ -61,7 +62,7 @@ export default function LoginPage() {
     })
     const data = await res.json()
     setLoading(false)
-    if (!res.ok) { setError(data.error || 'Login failed'); return }
+    if (!res.ok) { setError(data.error || 'Login failed'); setFailedAttempts(f => f + 1); return }
     localStorage.setItem('lw_token', data.token)
     await refresh()
     navigate('/')
@@ -148,8 +149,20 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div style={{ background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '10px 12px', color: '#f88', fontSize: '13px', marginBottom: '16px' }}>
-            {error}
+          <div style={{ background: 'rgba(232,24,122,0.12)', border: '1px solid rgba(232,24,122,0.4)', borderRadius: '8px', padding: '10px 14px', color: '#f88', fontSize: '13px', marginBottom: '16px' }}>
+            <div>{error}</div>
+            {failedAttempts >= 1 && mode === 'password' && (
+              <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(232,24,122,0.2)' }}>
+                <span style={{ color: '#aaa' }}>Forgot password? </span>
+                <span onClick={() => navigate('/forgot-password')} style={{ color: '#f0a500', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline' }}>
+                  Reset it here
+                </span>
+                <span style={{ color: '#aaa' }}> — or try </span>
+                <span onClick={() => switchMode('otp')} style={{ color: '#9b20d8', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline' }}>
+                  Email OTP login
+                </span>
+              </div>
+            )}
           </div>
         )}
         {resendMsg && (
@@ -227,7 +240,7 @@ export default function LoginPage() {
             </div>
             <OtpInput value={otp} onChange={v => { setOtp(v); setError('') }} disabled={loading} />
             <OtpTimer key={resendKey} seconds={60} onResend={handleResend} loading={loading} />
-            <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', marginTop: '-12px' }}>Code expires in 1 minute</p>
+            <p style={{ color: '#555', fontSize: '11px', textAlign: 'center', marginTop: '-12px' }}>Code expires in 5 minutes</p>
             <button type="submit" disabled={loading || otp.length < 6} style={btnPrimary(loading || otp.length < 6)}>
               {loading ? 'Verifying...' : 'Verify & Sign In ✓'}
             </button>

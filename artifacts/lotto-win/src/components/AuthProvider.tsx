@@ -8,10 +8,11 @@ const BASE = API_BASE
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('lw_token'))
+  const [loading, setLoading] = useState<boolean>(true)
 
   const refresh = async () => {
     const t = localStorage.getItem('lw_token')
-    if (!t) { setUser(null); return }
+    if (!t) { setUser(null); setToken(null); setLoading(false); return }
     try {
       const res = await fetch(`${BASE}/api/user/me`, {
         headers: { Authorization: `Bearer ${t}` },
@@ -19,25 +20,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!res.ok) { logout(); return }
       const data = await res.json()
       setUser(data.user)
+      setToken(t)
     } catch {
       logout()
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => { refresh() }, [])
 
-  const login = async (phone: string, password: string) => {
+  const login = async (email: string, password: string) => {
     const res = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, password }),
+      body: JSON.stringify({ email, password }),
     })
     const data = await res.json()
     if (!res.ok) return { error: data.error || 'Login failed' }
-
-    if (data.requireOtp) {
-      return { requireOtp: true, email: data.email as string }
-    }
 
     localStorage.setItem('lw_token', data.token)
     setToken(data.token)
@@ -49,10 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('lw_token')
     setToken(null)
     setUser(null)
+    setLoading(false)
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   )

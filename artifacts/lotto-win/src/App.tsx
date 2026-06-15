@@ -20,10 +20,18 @@ import NotFound from './pages/not-found'
 const queryClient = new QueryClient()
 
 function AdminGuard() {
-  const { user, token } = useAuth()
+  const { user, token, loading } = useAuth()
   const [, navigate] = useLocation()
   const verified = sessionStorage.getItem('lw_admin_verified') === '1'
   const isAdmin = ['admin', 'moderator'].includes(user?.role || '')
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#08071a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#9b20d8', fontFamily: 'Poppins, sans-serif', fontSize: '16px' }}>Verifying access…</div>
+      </div>
+    )
+  }
 
   if (!token || !isAdmin || !verified) {
     navigate('/lw-secure-7x9k')
