@@ -15,6 +15,9 @@ router.get('/me', requireAuth, async (req: AuthRequest, res) => {
     total_deposited: usersTable.total_deposited, total_won: usersTable.total_won,
     tickets_bought: usersTable.tickets_bought, is_flagged: usersTable.is_flagged,
     totp_enabled: usersTable.totp_enabled, created_at: usersTable.created_at,
+    partner_code: usersTable.partner_code,
+    referral_bonus_pct: usersTable.referral_bonus_pct,
+    referral_bonus_expires: usersTable.referral_bonus_expires,
   }).from(usersTable).where(eq(usersTable.id, req.user!.id))
   res.json({ user })
 })

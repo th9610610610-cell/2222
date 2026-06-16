@@ -33,7 +33,7 @@ export default function AdminPage() {
   const [deposits, setDeposits] = useState<Deposit[]>([])
   const [draws, setDraws] = useState<Draw[]>([])
   const [users, setUsers] = useState<User[]>([])
-  const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '' })
+  const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '', user_code_enabled: false, user_code_buyer_discount_pct: 15, user_code_owner_reward_pct: 5, user_code_per_draw_limit: 5 })
   const [ads, setAds] = useState<Ad[]>([])
   const [businessCodes, setBusinessCodes] = useState<BusinessCode[]>([])
   const [newAd, setNewAd] = useState({ type: 'text', title: '', content: '', link_url: '' })
@@ -533,9 +533,64 @@ export default function AdminPage() {
         {/* PARTNERS TAB */}
         {tab === 'partners' && !loading && (
           <>
+            {/* User Partner Code Settings */}
+            <div style={cardStyle}>
+              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '4px', fontFamily: 'Poppins, sans-serif' }}>👤 User Partner Code Settings</h3>
+              <p style={{ color: '#8888aa', fontSize: '12px', marginBottom: '14px' }}>Each user gets a unique code (e.g. LW21832R). Control discounts and limits here.</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', background: 'rgba(155,32,216,0.1)', borderRadius: '10px', padding: '12px 14px' }}>
+                <div>
+                  <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>User Partner Codes</p>
+                  <p style={{ color: '#8888aa', fontSize: '11px' }}>{settings.user_code_enabled ? '✅ Active — users can share their code' : '⛔ Disabled'}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const updated = { ...settings, user_code_enabled: !settings.user_code_enabled }
+                    setSettings(updated)
+                    await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(updated) })
+                    setMsg(updated.user_code_enabled ? '✅ User partner codes enabled' : 'User partner codes disabled')
+                  }}
+                  style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: settings.user_code_enabled ? 'rgba(232,24,122,0.3)' : 'linear-gradient(90deg,#f0a500,#e8187a)', color: '#fff', fontWeight: 700, fontSize: '13px' }}
+                >
+                  {settings.user_code_enabled ? 'Turn OFF' : 'Turn ON'}
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Buyer Discount %</label>
+                  <input type="number" min={1} max={90} value={settings.user_code_buyer_discount_pct}
+                    onChange={e => setSettings(s => ({ ...s, user_code_buyer_discount_pct: Number(e.target.value) }))}
+                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid rgba(155,32,216,0.3)', background: 'rgba(155,32,216,0.1)', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Owner Reward %</label>
+                  <input type="number" min={1} max={50} value={settings.user_code_owner_reward_pct}
+                    onChange={e => setSettings(s => ({ ...s, user_code_owner_reward_pct: Number(e.target.value) }))}
+                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid rgba(155,32,216,0.3)', background: 'rgba(155,32,216,0.1)', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Max Tickets / Draw</label>
+                  <input type="number" min={1} max={50} value={settings.user_code_per_draw_limit}
+                    onChange={e => setSettings(s => ({ ...s, user_code_per_draw_limit: Number(e.target.value) }))}
+                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid rgba(155,32,216,0.3)', background: 'rgba(155,32,216,0.1)', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <p style={{ color: '#8888aa', fontSize: '11px', marginTop: '8px' }}>
+                Example: buyer gets {settings.user_code_buyer_discount_pct}% off · code owner earns {settings.user_code_owner_reward_pct}% of sale as balance reward · limit {settings.user_code_per_draw_limit} tickets per draw per code
+              </p>
+              <button
+                onClick={async () => {
+                  await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
+                  setMsg('✅ User code settings saved')
+                }}
+                style={{ marginTop: '12px', width: '100%', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg,#f0a500,#e8187a)', color: '#fff', fontWeight: 700 }}
+              >
+                Save User Code Settings
+              </button>
+            </div>
+
             {/* Create Business Partner Code */}
             <div style={cardStyle}>
-              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>🏢 Create Partner Code</h3>
+              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>🏢 Create Business Partner Code</h3>
               <form onSubmit={createBusinessCode} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
                   <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Code (e.g. PROMO2025)</label>

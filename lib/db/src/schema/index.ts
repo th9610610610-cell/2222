@@ -12,6 +12,7 @@ export const usersTable = pgTable('users', {
   full_name: text('full_name').notNull(),
   email: text('email').unique(),
   phone: text('phone').unique(),
+  partner_code: text('partner_code').unique(),
   password_hash: text('password_hash').notNull(),
   role: userRoleEnum('role').notNull().default('user'),
   balance: integer('balance').notNull().default(0),
@@ -124,6 +125,10 @@ export const settingsTable = pgTable('settings', {
   whatsapp_number: text('whatsapp_number').notNull().default(''),
   payment_number: text('payment_number').notNull().default(''),
   announcement: text('announcement').notNull().default(''),
+  user_code_enabled: boolean('user_code_enabled').notNull().default(false),
+  user_code_buyer_discount_pct: integer('user_code_buyer_discount_pct').notNull().default(15),
+  user_code_owner_reward_pct: integer('user_code_owner_reward_pct').notNull().default(5),
+  user_code_per_draw_limit: integer('user_code_per_draw_limit').notNull().default(5),
 })
 
 export const businessCodesTable = pgTable('business_codes', {
@@ -137,6 +142,15 @@ export const businessCodesTable = pgTable('business_codes', {
   description: text('description').notNull().default(''),
   created_at: timestamp('created_at').notNull().defaultNow(),
 })
+
+export const userCodeUsagesTable = pgTable('user_code_usages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code_owner_id: uuid('code_owner_id').notNull().references(() => usersTable.id),
+  draw_id: uuid('draw_id').notNull().references(() => drawsTable.id),
+  tickets_used: integer('tickets_used').notNull().default(0),
+}, (table) => ({
+  ownerDrawUnique: uniqueIndex('user_code_usages_owner_draw_unique').on(table.code_owner_id, table.draw_id),
+}))
 
 export const adsTable = pgTable('ads', {
   id: uuid('id').primaryKey().defaultRandom(),

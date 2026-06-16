@@ -84,6 +84,10 @@ export interface Settings {
   whatsapp_number: string
   payment_number: string
   announcement: string
+  user_code_enabled: boolean
+  user_code_buyer_discount_pct: number
+  user_code_owner_reward_pct: number
+  user_code_per_draw_limit: number
 }
 
 export type AdType = 'text' | 'image' | 'video'

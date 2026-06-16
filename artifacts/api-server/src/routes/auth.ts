@@ -10,6 +10,23 @@ import { generateOtp, storeOtp, verifyOtp, hasRecentOtp } from '../lib/otp'
 import { logLogin } from '../lib/auditLog'
 
 const router = Router()
+
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'
+function generatePartnerCode(): string {
+  let code = 'LW'
+  for (let i = 0; i < 6; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]
+  return code
+}
+
+async function uniquePartnerCode(): Promise<string> {
+  for (let i = 0; i < 20; i++) {
+    const code = generatePartnerCode()
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.partner_code, code))
+    if (!existing.length) return code
+  }
+  throw new Error('Could not generate unique partner code')
+}
+
 function getJwtSecret(): string {
   const s = process.env.JWT_SECRET
   if (!s) throw new Error('JWT_SECRET environment variable is required')
@@ -87,14 +104,15 @@ router.post('/register/verify', async (req, res) => {
     }
 
     const password_hash = await bcrypt.hash(password, 12)
+    const partner_code = await uniquePartnerCode()
     const insertData: any = {
-      full_name, email: email.trim().toLowerCase(), password_hash, is_verified: true,
+      full_name, email: email.trim().toLowerCase(), password_hash, is_verified: true, partner_code,
     }
     if (phone) insertData.phone = phone
 
     const [user] = await db.insert(usersTable).values(insertData).returning({
       id: usersTable.id, full_name: usersTable.full_name, phone: usersTable.phone,
-      email: usersTable.email, role: usersTable.role
+      email: usersTable.email, role: usersTable.role, partner_code: usersTable.partner_code,
     })
 
     const token = jwt.sign({ id: user.id, role: user.role }, getJwtSecret(), { expiresIn: '30d' })
