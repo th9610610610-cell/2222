@@ -126,17 +126,17 @@ export default function DrawsPage() {
 
     if (!res.ok) {
       setDrawResult(p => ({ ...p, [draw.id]: { ok: false, text: '❌ ' + (data.error || 'Purchase failed') } }))
-      setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 5000)
+      setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 4000)
       return
     }
 
-    const discountNote = data.discount_applied > 0 ? ` · ${data.discount_applied}% discount!` : ''
-    setDrawResult(p => ({ ...p, [draw.id]: { ok: true, text: `✅ Bought ${quantity} ticket${quantity > 1 ? 's' : ''}! Total: ${formatCurrency(data.total_cost)}${discountNote}` } }))
+    const discountNote = data.discount_applied > 0 ? ` · ${data.discount_applied}% off!` : ''
+    setDrawResult(p => ({ ...p, [draw.id]: { ok: true, text: `✅ Bought ${quantity} ticket${quantity > 1 ? 's' : ''}! ৳${data.total_cost}${discountNote}` } }))
     setCouponCode(p => ({ ...p, [draw.id]: '' }))
     setCouponState(p => ({ ...p, [draw.id]: emptyCoupon() }))
     load()
     refresh()
-    setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 6000)
+    setTimeout(() => setDrawResult(p => ({ ...p, [draw.id]: null })), 4000)
   }
 
   const statusColor = (s: string) => {
@@ -325,44 +325,37 @@ export default function DrawsPage() {
                       <button onClick={() => setQty(q => ({ ...q, [draw.id]: Math.min(20, (q[draw.id] || 1) + 1) }))} style={{ padding: '10px 14px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}>+</button>
                     </div>
                     <button
-                      onClick={() => !buyDisabled && buyTicket(draw)}
-                      disabled={buyDisabled}
+                      onClick={() => !buyDisabled && !drawResult[draw.id] && buyTicket(draw)}
+                      disabled={buyDisabled || !!drawResult[draw.id]}
                       style={{
                         flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
-                        cursor: buyDisabled ? 'not-allowed' : 'pointer',
-                        background: buyDisabled
-                          ? 'rgba(136,136,170,0.2)'
-                          : effectiveDiscount > 0
-                            ? 'linear-gradient(90deg, #22c55e, #16a34a)'
-                            : 'linear-gradient(90deg, #f0a500, #e8187a)',
-                        color: buyDisabled ? '#8888aa' : '#fff',
-                        fontWeight: 700, fontSize: '14px',
+                        cursor: (buyDisabled || !!drawResult[draw.id]) ? 'not-allowed' : 'pointer',
+                        background: drawResult[draw.id]
+                          ? drawResult[draw.id]!.ok
+                            ? 'linear-gradient(90deg, #16a34a, #22c55e)'
+                            : 'linear-gradient(90deg, #be123c, #e8187a)'
+                          : buyDisabled
+                            ? 'rgba(136,136,170,0.2)'
+                            : effectiveDiscount > 0
+                              ? 'linear-gradient(90deg, #22c55e, #16a34a)'
+                              : 'linear-gradient(90deg, #f0a500, #e8187a)',
+                        color: buyDisabled && !drawResult[draw.id] ? '#8888aa' : '#fff',
+                        fontWeight: 700, fontSize: '13px',
                         opacity: buying === draw.id ? 0.7 : 1,
                         transition: 'all 0.3s',
+                        lineHeight: '1.3',
                       }}
                     >
                       {buying === draw.id
-                        ? 'Processing...'
-                        : buyDisabled && code
-                          ? cs?.status === 'checking' ? '⏳ Verifying code...' : '🚫 Invalid Code'
-                          : `Buy · ${formatCurrency(totalPrice)}`
-                          + (effectiveDiscount > 0 ? ` (${effectiveDiscount}% off)` : '')
+                        ? '⏳ Processing...'
+                        : drawResult[draw.id]
+                          ? drawResult[draw.id]!.text
+                          : buyDisabled && code
+                            ? cs?.status === 'checking' ? '⏳ Verifying...' : '🚫 Invalid Code'
+                            : `Buy · ${formatCurrency(totalPrice)}${effectiveDiscount > 0 ? ` (${effectiveDiscount}% off)` : ''}`
                       }
                     </button>
                   </div>
-
-                  {/* Inline result — appears below the buy button */}
-                  {drawResult[draw.id] && (
-                    <div style={{
-                      borderRadius: '10px', padding: '11px 14px',
-                      background: drawResult[draw.id]!.ok ? 'rgba(80,200,80,0.12)' : 'rgba(232,24,122,0.12)',
-                      border: `1px solid ${drawResult[draw.id]!.ok ? 'rgba(80,200,80,0.4)' : 'rgba(232,24,122,0.4)'}`,
-                      color: drawResult[draw.id]!.ok ? '#4ade80' : '#f88',
-                      fontSize: '13px', fontFamily: 'Poppins, sans-serif', fontWeight: 600,
-                    }}>
-                      {drawResult[draw.id]!.text}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
