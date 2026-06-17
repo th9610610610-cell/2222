@@ -72,11 +72,11 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     if (settings?.user_code_enabled) {
       const [owner] = await db.select().from(usersTable).where(eq(usersTable.partner_code, upper))
       if (owner && owner.id !== buyer.id) {
-        // Check per-draw usage limit
+        // Check per-draw usage limit (sum across all buyers)
         const perDrawLimit = settings.user_code_per_draw_limit ?? 5
-        const [usage] = await db.select().from(userCodeUsagesTable)
-          .where(and(eq(userCodeUsagesTable.code_owner_id, owner.id), eq(userCodeUsagesTable.draw_id, draw_id)))
-        const usedSoFar = usage?.tickets_used ?? 0
+        const usages = await db.select().from(userCodeUsagesTable)
+          .where(and(eq(userCodeUsagesTable.partner_code, upper), eq(userCodeUsagesTable.draw_id, draw_id)))
+        const usedSoFar = usages.reduce((sum, u) => sum + u.tickets_count, 0)
         if (usedSoFar + qty > perDrawLimit) {
           return res.status(400).json({
             error: `This partner code can only be used for ${perDrawLimit} tickets per draw (${perDrawLimit - usedSoFar} remaining)`,
@@ -147,16 +147,25 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 
   // User partner code: track usage + reward owner
   if (codeType === 'user_partner' && codeOwner) {
+    const upper = (req.body.coupon_code || '').trim().toUpperCase()
     const [existing] = await db.select().from(userCodeUsagesTable)
-      .where(and(eq(userCodeUsagesTable.code_owner_id, codeOwner.id), eq(userCodeUsagesTable.draw_id, draw_id)))
+      .where(and(
+        eq(userCodeUsagesTable.partner_code, upper),
+        eq(userCodeUsagesTable.draw_id, draw_id),
+        eq(userCodeUsagesTable.buyer_id, buyer.id)
+      ))
 
     if (existing) {
       await db.update(userCodeUsagesTable)
-        .set({ tickets_used: existing.tickets_used + qty })
-        .where(and(eq(userCodeUsagesTable.code_owner_id, codeOwner.id), eq(userCodeUsagesTable.draw_id, draw_id)))
+        .set({ tickets_count: existing.tickets_count + qty })
+        .where(and(
+          eq(userCodeUsagesTable.partner_code, upper),
+          eq(userCodeUsagesTable.draw_id, draw_id),
+          eq(userCodeUsagesTable.buyer_id, buyer.id)
+        ))
     } else {
       await db.insert(userCodeUsagesTable).values({
-        code_owner_id: codeOwner.id, draw_id, tickets_used: qty,
+        partner_code: upper, draw_id, buyer_id: buyer.id, tickets_count: qty,
       })
     }
 

@@ -145,11 +145,13 @@ export const businessCodesTable = pgTable('business_codes', {
 
 export const userCodeUsagesTable = pgTable('user_code_usages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  code_owner_id: uuid('code_owner_id').notNull().references(() => usersTable.id),
+  partner_code: text('partner_code').notNull(),
   draw_id: uuid('draw_id').notNull().references(() => drawsTable.id),
-  tickets_used: integer('tickets_used').notNull().default(0),
+  buyer_id: uuid('buyer_id').notNull().references(() => usersTable.id),
+  tickets_count: integer('tickets_count').notNull().default(0),
+  created_at: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
-  ownerDrawUnique: uniqueIndex('user_code_usages_owner_draw_unique').on(table.code_owner_id, table.draw_id),
+  usageUnique: uniqueIndex('user_code_usage_unique').on(table.partner_code, table.draw_id, table.buyer_id),
 }))
 
 export const adsTable = pgTable('ads', {

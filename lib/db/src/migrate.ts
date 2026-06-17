@@ -13,7 +13,7 @@ function parsePgUrl(url: string): pg.PoolConfig {
     const colonInAuth = authPart.indexOf(':')
     const user = colonInAuth !== -1 ? authPart.slice(0, colonInAuth) : authPart
     const rawPass = colonInAuth !== -1 ? authPart.slice(colonInAuth + 1) : ''
-    const password = rawPass.includes('%') ? decodeURIComponent(rawPass) : rawPass
+    const password = (rawPass.includes('%') ? decodeURIComponent(rawPass) : rawPass).trim()
     const slashInHost = hostPart.indexOf('/')
     const hostport = slashInHost !== -1 ? hostPart.slice(0, slashInHost) : hostPart
     const database = slashInHost !== -1 ? hostPart.slice(slashInHost + 1).split('?')[0] : 'postgres'
@@ -249,6 +249,35 @@ export async function runMigrations(connectionString: string): Promise<void> {
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `)
+
+    // Feature: Partner code (referral system)
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_code TEXT`)
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_partner_code_unique ON users(partner_code) WHERE partner_code IS NOT NULL`)
+
+    // Feature: User code usages table (real DB uses partner_code/buyer_id schema)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_code_usages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        partner_code TEXT NOT NULL,
+        draw_id UUID NOT NULL REFERENCES draws(id),
+        buyer_id UUID NOT NULL REFERENCES users(id),
+        tickets_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `)
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'user_code_usage_unique') THEN
+          CREATE UNIQUE INDEX user_code_usage_unique ON user_code_usages(partner_code, draw_id, buyer_id);
+        END IF;
+      END $$
+    `)
+
+    // Feature: Settings extended for partner codes
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_code_enabled BOOLEAN NOT NULL DEFAULT true`)
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_code_buyer_discount_pct INTEGER NOT NULL DEFAULT 15`)
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_code_owner_reward_pct INTEGER NOT NULL DEFAULT 5`)
+    await client.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS user_code_per_draw_limit INTEGER NOT NULL DEFAULT 5`)
 
     // Feature: Phone optional — drop NOT NULL constraint
     await client.query(`ALTER TABLE users ALTER COLUMN phone DROP NOT NULL`)

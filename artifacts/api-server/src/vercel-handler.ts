@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
-import nodemailer from "nodemailer";
 import router from "./routes";
 import { runMigrations } from "@workspace/db/migrate";
 
