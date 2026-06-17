@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @workspace/lotto-win run build",
+  "buildCommand": "node --input-type=module -e \"import { build } from './node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild/lib/main.js'; import { createRequire } from 'node:module'; globalThis.require = createRequire(import.meta.url); await build({ entryPoints: ['artifacts/api-server/src/vercel-handler.ts'], platform: 'node', bundle: true, format: 'cjs', outfile: 'api/index.js', external: ['*.node','sharp','better-sqlite3','canvas','bcrypt','argon2','fsevents','re2','farmhash','bufferutil','utf-8-validate','pg-native','nodemailer','handlebars','knex','typeorm','onnxruntime-node','@prisma/client','dd-trace','piscina','sequelize','mysql2','newrelic','electron','playwright','puppeteer','miniflare','wrangler'] });\" && pnpm --filter @workspace/lotto-win run build",
   "outputDirectory": "artifacts/lotto-win/dist/public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },

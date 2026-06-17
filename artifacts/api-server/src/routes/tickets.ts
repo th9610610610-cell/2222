@@ -106,6 +106,17 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     }
   }
 
+  // Apply user's personal referral bonus if no coupon code was submitted
+  if (!codeType && !coupon_code?.trim()) {
+    const now = new Date()
+    if (
+      buyer.referral_bonus_pct > 0 &&
+      (!buyer.referral_bonus_expires || now < new Date(buyer.referral_bonus_expires))
+    ) {
+      discountPct = buyer.referral_bonus_pct
+    }
+  }
+
   const unitPrice = discountPct > 0
     ? Math.ceil(draw.ticket_price * (1 - discountPct / 100))
     : draw.ticket_price
