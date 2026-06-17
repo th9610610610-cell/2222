@@ -1,16 +1,4 @@
 {
   "projectId": "prj_PbLTocYLEHqX4lGhysQhTREM76TP",
-  "orgId": "uq48Cxbqru5BmAu26oaxAq5j",
-  "projectName": "lotto-win-",
-  "settings": {
-    "createdAt": 1781282702940,
-    "framework": "vite",
-    "devCommand": null,
-    "installCommand": "pnpm install",
-    "buildCommand": "cd ../.. && pnpm install && pnpm --filter @workspace/lotto-win run build",
-    "outputDirectory": "dist/public",
-    "rootDirectory": "artifacts/lotto-win",
-    "directoryListing": false,
-    "nodeVersion": "24.x"
-  }
+  "orgId": "uq48Cxbqru5BmAu26oaxAq5j"
 }

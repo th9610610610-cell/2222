@@ -57,7 +57,7 @@ export default function NotificationsPage() {
         padding: '18px 18px 14px',
         borderBottom: '1.5px solid', borderImage: 'linear-gradient(90deg,#c8006a,#7b00cc) 1',
       }}>
-        <button onClick={() => navigate(-1 as any)} style={{ background: 'none', border: 'none', color: '#9b20d8', cursor: 'pointer', fontSize: '22px', padding: '0 4px' }}>←</button>
+        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: '#9b20d8', cursor: 'pointer', fontSize: '22px', padding: '0 4px' }}>←</button>
         <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#fff', fontSize: '18px' }}>Notifications</span>
       </div>
 
