@@ -37,6 +37,9 @@ export default function AdminPage() {
   const [ads, setAds] = useState<Ad[]>([])
   const [businessCodes, setBusinessCodes] = useState<BusinessCode[]>([])
   const [newAd, setNewAd] = useState({ type: 'text', title: '', content: '', link_url: '' })
+  const [adFilePreview, setAdFilePreview] = useState<string | null>(null)
+  const [adUploadError, setAdUploadError] = useState<string | null>(null)
+  const [adUploading, setAdUploading] = useState(false)
   const [newCode, setNewCode] = useState({ code: '', discount_pct: '50', usage_limit: '100', expires_at: '', description: '' })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
@@ -682,10 +685,14 @@ export default function AdminPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
                   <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Type</label>
-                  <select value={newAd.type} onChange={e => setNewAd(f => ({ ...f, type: e.target.value }))} style={{ ...inputStyle }}>
+                  <select value={newAd.type} onChange={e => {
+                    setNewAd(f => ({ ...f, type: e.target.value, content: '' }))
+                    setAdFilePreview(null)
+                    setAdUploadError(null)
+                  }} style={{ ...inputStyle }}>
                     <option value="text">📝 Text</option>
-                    <option value="image">🖼️ Image (URL)</option>
-                    <option value="video">🎥 Video (URL)</option>
+                    <option value="image">🖼️ Image (ফাইল আপলোড)</option>
+                    <option value="video">🎥 Video (ফাইল আপলোড)</option>
                   </select>
                 </div>
                 <div>
@@ -694,12 +701,62 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>
-                    {newAd.type === 'text' ? 'Ad Text' : newAd.type === 'image' ? 'Image URL' : 'Video URL'}
+                    {newAd.type === 'text' ? 'Ad Text' : newAd.type === 'image' ? '🖼️ ছবি সিলেক্ট করো (Gallery থেকে)' : '🎥 ভিডিও সিলেক্ট করো (Gallery থেকে)'}
                   </label>
                   {newAd.type === 'text' ? (
                     <textarea value={newAd.content} onChange={e => setNewAd(f => ({ ...f, content: e.target.value }))} placeholder="Write your ad text..." rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
                   ) : (
-                    <input type="url" value={newAd.content} onChange={e => setNewAd(f => ({ ...f, content: e.target.value }))} placeholder={newAd.type === 'image' ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'} style={inputStyle} />
+                    <div>
+                      <label style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                        padding: '20px', borderRadius: '12px', cursor: 'pointer',
+                        border: '2px dashed rgba(155,32,216,0.5)',
+                        background: adFilePreview ? 'rgba(155,32,216,0.08)' : 'rgba(155,32,216,0.05)',
+                        color: '#9b20d8', fontWeight: 600, fontSize: '14px',
+                        transition: 'all 0.2s',
+                      }}>
+                        <span style={{ fontSize: '24px' }}>{newAd.type === 'image' ? '🖼️' : '🎥'}</span>
+                        <span>{adFilePreview ? '✅ ফাইল সিলেক্ট হয়েছে — পরিবর্তন করতে এখানে চাপো' : `${newAd.type === 'image' ? 'ছবি' : 'ভিডিও'} সিলেক্ট করতে এখানে চাপো`}</span>
+                        <input
+                          type="file"
+                          accept={newAd.type === 'image' ? 'image/*' : 'video/*'}
+                          style={{ display: 'none' }}
+                          onChange={e => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            const maxMB = newAd.type === 'image' ? 5 : 20
+                            if (file.size > maxMB * 1024 * 1024) {
+                              setAdUploadError(`ফাইল সাইজ ${maxMB}MB এর বেশি হবে না`)
+                              return
+                            }
+                            setAdUploadError(null)
+                            setAdUploading(true)
+                            const reader = new FileReader()
+                            reader.onload = ev => {
+                              const dataUrl = ev.target?.result as string
+                              setNewAd(f => ({ ...f, content: dataUrl }))
+                              setAdFilePreview(dataUrl)
+                              setAdUploading(false)
+                            }
+                            reader.readAsDataURL(file)
+                          }}
+                        />
+                      </label>
+                      {adUploadError && <p style={{ color: '#e8187a', fontSize: '12px', marginTop: '6px' }}>⚠️ {adUploadError}</p>}
+                      {adUploading && <p style={{ color: '#9b20d8', fontSize: '12px', marginTop: '6px' }}>⏳ লোড হচ্ছে...</p>}
+                      {adFilePreview && (
+                        <div style={{ marginTop: '10px', borderRadius: '10px', overflow: 'hidden', height: '120px', position: 'relative' }}>
+                          {newAd.type === 'image' ? (
+                            <img src={adFilePreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <video src={adFilePreview} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          )}
+                          <div style={{ position: 'absolute', bottom: '6px', right: '8px', background: 'rgba(0,0,0,0.6)', color: '#4f4', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>Preview</div>
+                        </div>
+                      )}
+                      {newAd.type === 'image' && <p style={{ color: '#555', fontSize: '11px', marginTop: '6px' }}>সর্বোচ্চ 5MB · JPG, PNG, GIF, WebP</p>}
+                      {newAd.type === 'video' && <p style={{ color: '#555', fontSize: '11px', marginTop: '6px' }}>সর্বোচ্চ 20MB · MP4, WebM</p>}
+                    </div>
                   )}
                 </div>
                 <div>
@@ -707,12 +764,20 @@ export default function AdminPage() {
                   <input type="url" value={newAd.link_url} onChange={e => setNewAd(f => ({ ...f, link_url: e.target.value }))} placeholder="https://..." style={inputStyle} />
                 </div>
                 <button onClick={async () => {
-                  if (!newAd.content.trim()) { setMsg('Content is required'); return }
+                  if (!newAd.content.trim()) { setMsg('⚠️ ছবি/ভিডিও/টেক্সট সিলেক্ট করো আগে'); return }
                   const res = await fetch(`${BASE}/api/ads`, { method: 'POST', headers, body: JSON.stringify(newAd) })
-                  if (res.ok) { setMsg('✅ Ad created!'); setNewAd({ type: 'text', title: '', content: '', link_url: '' }); loadAll() }
-                  else { const d = await res.json().catch(() => ({})); setMsg(`❌ ${d.error || 'Failed to create ad'} (status ${res.status})`) }
-                }} style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>
-                  + Post Ad
+                  if (res.ok) {
+                    setMsg('✅ Ad তৈরি হয়েছে!')
+                    setNewAd({ type: 'text', title: '', content: '', link_url: '' })
+                    setAdFilePreview(null)
+                    setAdUploadError(null)
+                    loadAll()
+                  } else {
+                    const d = await res.json().catch(() => ({}))
+                    setMsg(`❌ ${d.error || 'Failed to create ad'} (status ${res.status})`)
+                  }
+                }} disabled={adUploading} style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: adUploading ? 'not-allowed' : 'pointer', background: adUploading ? 'rgba(155,32,216,0.3)' : 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700, opacity: adUploading ? 0.6 : 1 }}>
+                  {adUploading ? '⏳ লোড হচ্ছে...' : '+ Ad পোস্ট করো'}
                 </button>
               </div>
             </div>
@@ -746,8 +811,21 @@ export default function AdminPage() {
                   </div>
                 </div>
                 {ad.title && <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{ad.title}</p>}
-                <p style={{ color: '#8888aa', fontSize: '12px', wordBreak: 'break-all' }}>{ad.content.slice(0, 80)}{ad.content.length > 80 ? '…' : ''}</p>
-                {ad.link_url && <p style={{ color: '#9b20d8', fontSize: '11px', marginTop: '4px' }}>🔗 {ad.link_url.slice(0, 40)}…</p>}
+                {ad.type === 'image' && ad.content ? (
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', height: '80px', marginBottom: '6px' }}>
+                    <img src={ad.content} alt={ad.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ) : ad.type === 'video' && ad.content ? (
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', height: '80px', marginBottom: '6px', position: 'relative' }}>
+                    <video src={ad.content} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '28px', opacity: 0.8 }}>▶️</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ color: '#8888aa', fontSize: '12px' }}>{ad.content.slice(0, 100)}{ad.content.length > 100 ? '…' : ''}</p>
+                )}
+                {ad.link_url && <p style={{ color: '#9b20d8', fontSize: '11px', marginTop: '4px' }}>🔗 {ad.link_url.slice(0, 40)}</p>}
               </div>
             ))}
           </>
