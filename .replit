@@ -191,7 +191,7 @@ SMTP_FROM = "Lotto Win <lottowinsbd@gmail.com>"
 
 [userenv.development]
 NODE_ENV = "development"
-ALLOWED_ORIGINS = "https://84ac547f-af28-4250-bb67-b9e73c0756d2-00-hbofrht0ipov.sisko.replit.dev,http://localhost:19713"
+ALLOWED_ORIGINS = "https://f45090a7-f0c7-4686-a952-bd34f395332d-00-231np9pctg8hc.sisko.replit.dev,http://localhost:19713"
 
 [userenv.production]
 NODE_ENV = "production"
