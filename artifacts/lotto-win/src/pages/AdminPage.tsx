@@ -926,6 +926,11 @@ export default function AdminPage() {
                             const file = e.target.files?.[0]
                             if (!file) return
                             if (newAd.type === 'image') {
+                              const maxMB = 10
+                              if (file.size > maxMB * 1024 * 1024) {
+                                setAdUploadError(`ছবি সাইজ ${maxMB}MB এর বেশি হবে না`)
+                                return
+                              }
                               setAdUploadError(null)
                               setAdUploading(true)
                               try {
@@ -937,7 +942,7 @@ export default function AdminPage() {
                               }
                               setAdUploading(false)
                             } else {
-                              const maxMB = 3
+                              const maxMB = 50
                               if (file.size > maxMB * 1024 * 1024) {
                                 setAdUploadError(`ভিডিও সাইজ ${maxMB}MB এর বেশি হবে না`)
                                 return
@@ -968,8 +973,8 @@ export default function AdminPage() {
                           <div style={{ position: 'absolute', bottom: '6px', right: '8px', background: 'rgba(0,0,0,0.6)', color: '#4f4', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>Preview</div>
                         </div>
                       )}
-                      {newAd.type === 'image' && <p style={{ color: '#555', fontSize: '11px', marginTop: '6px' }}>সর্বোচ্চ 5MB · JPG, PNG, GIF, WebP</p>}
-                      {newAd.type === 'video' && <p style={{ color: '#555', fontSize: '11px', marginTop: '6px' }}>সর্বোচ্চ 20MB · MP4, WebM</p>}
+                      {newAd.type === 'image' && <p style={{ color: '#555', fontSize: '11px', marginTop: '6px' }}>সর্বোচ্চ 10MB · JPG, PNG, GIF, WebP (স্বয়ংক্রিয় compress হবে)</p>}
+                      {newAd.type === 'video' && <p style={{ color: '#555', fontSize: '11px', marginTop: '6px' }}>সর্বোচ্চ 50MB · MP4, WebM</p>}
                     </div>
                   )}
                 </div>
