@@ -40,6 +40,8 @@ export default function HomePage() {
   const [pendingDeposits, setPendingDeposits] = useState<any[]>([])
   const [activeTickets, setActiveTickets] = useState<any[]>([])
   const [pendingModalLoading, setPendingModalLoading] = useState(false)
+  const [homeTerms, setHomeTerms] = useState(false)
+  const [homeTermsShake, setHomeTermsShake] = useState(false)
   const adTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const touchStartX = useRef(0)
 
@@ -131,6 +133,13 @@ export default function HomePage() {
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
         }
       `}</style>
       <TopNav />
@@ -303,13 +312,13 @@ export default function HomePage() {
               ad.type === 'video' ? (
                 <video src={ad.content} autoPlay muted loop playsInline style={{
                   position: 'absolute', inset: 0, width: '100%', height: '100%',
-                  objectFit: 'cover', zIndex: 1,
+                  objectFit: 'contain', zIndex: 1,
                 }} />
               ) : ad.type === 'image' ? (
                 <>
                   <img src={ad.content} alt={ad.title} style={{
                     position: 'absolute', inset: 0, width: '100%', height: '100%',
-                    objectFit: 'cover', zIndex: 1,
+                    objectFit: 'contain', zIndex: 1,
                   }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   {/* Overlay for text readability */}
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,0,0,0.6) 0%, transparent 60%)', zIndex: 2 }} />
@@ -457,7 +466,14 @@ export default function HomePage() {
             )}
 
             {/* Buy Button — outside slider */}
-            <button onClick={() => navigate('/draws')} style={{
+            <button onClick={() => {
+              if (!homeTerms) {
+                setHomeTermsShake(true)
+                setTimeout(() => setHomeTermsShake(false), 600)
+                return
+              }
+              navigate('/draws')
+            }} style={{
               width: '100%', padding: '15px 22px',
               borderRadius: '20px',
               border: 'none', cursor: 'pointer', marginTop: '12px',
@@ -476,6 +492,29 @@ export default function HomePage() {
                 </svg>
               </div>
             </button>
+
+            {/* T&C Checkbox — 5px below Buy button */}
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              marginTop: '5px', cursor: 'pointer', padding: '8px 4px',
+              animation: homeTermsShake ? 'shake 0.5s ease' : 'none',
+            }}>
+              <div style={{
+                width: '20px', height: '20px', borderRadius: '5px', flexShrink: 0,
+                border: `2px solid ${homeTerms ? '#9b20d8' : homeTermsShake ? '#e8187a' : 'rgba(155,32,216,0.4)'}`,
+                background: homeTerms ? '#9b20d8' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s',
+              }}>
+                {homeTerms && <svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4L4.5 7.5L11 1" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <input type="checkbox" checked={homeTerms} onChange={e => setHomeTerms(e.target.checked)} style={{ display: 'none' }} />
+              <span style={{ color: homeTermsShake ? '#e8187a' : '#9999bb', fontSize: '12px', fontFamily: 'Poppins, sans-serif', lineHeight: '1.4' }}>
+                আমি{' '}
+                <span onClick={e => { e.preventDefault(); navigate('/terms') }} style={{ color: '#9b20d8', textDecoration: 'underline', cursor: 'pointer' }}>শর্ত ও নিয়মাবলী</span>
+                {' '}পড়েছি এবং সম্মত আছি
+              </span>
+            </label>
           </div>
         )}
       </div>

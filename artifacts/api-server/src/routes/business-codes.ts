@@ -18,13 +18,14 @@ router.get('/', requireAuth, requireAdmin, async (_req, res) => {
 
 // Admin: create code
 router.post('/', requireAuth, requireAdmin, async (req: AuthRequest, res) => {
-  const { code, discount_pct = 50, usage_limit = 100, expires_at, description = '' } = req.body
+  const { code, usage_limit = 100, per_person_limit, expires_at, description = '' } = req.body
   if (!code?.trim()) return res.status(400).json({ error: 'Code is required' })
   try {
     const [created] = await db.insert(businessCodesTable).values({
       code: code.trim().toUpperCase(),
-      discount_pct: Number(discount_pct),
+      discount_pct: 0,
       usage_limit: Number(usage_limit),
+      per_person_limit: per_person_limit ? Number(per_person_limit) : null,
       expires_at: expires_at ? new Date(expires_at) : null,
       description,
     }).returning()

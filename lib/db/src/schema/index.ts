@@ -134,8 +134,9 @@ export const settingsTable = pgTable('settings', {
 export const businessCodesTable = pgTable('business_codes', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: text('code').notNull().unique(),
-  discount_pct: integer('discount_pct').notNull().default(50),
+  discount_pct: integer('discount_pct').notNull().default(0),
   usage_limit: integer('usage_limit').notNull().default(100),
+  per_person_limit: integer('per_person_limit'),
   usage_count: integer('usage_count').notNull().default(0),
   expires_at: timestamp('expires_at'),
   is_active: boolean('is_active').notNull().default(true),

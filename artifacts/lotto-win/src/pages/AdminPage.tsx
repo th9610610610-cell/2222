@@ -25,6 +25,7 @@ interface BusinessCode {
   code: string
   discount_pct: number
   usage_limit: number
+  per_person_limit: number | null
   usage_count: number
   expires_at: string | null
   is_active: boolean
@@ -58,7 +59,7 @@ export default function AdminPage() {
   const [adFilePreview, setAdFilePreview] = useState<string | null>(null)
   const [adUploadError, setAdUploadError] = useState<string | null>(null)
   const [adUploading, setAdUploading] = useState(false)
-  const [newCode, setNewCode] = useState({ code: '', discount_pct: '50', usage_limit: '100', expires_at: '', description: '' })
+  const [newCode, setNewCode] = useState({ code: '', usage_limit: '100', per_person_limit: '5', expires_at: '' })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [newDraw, setNewDraw] = useState({
@@ -81,6 +82,35 @@ export default function AdminPage() {
   const [totpEnabled, setTotpEnabled] = useState(false)
 
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const canvas = document.createElement('canvas')
+        let { width, height } = img
+        const maxDim = 1200
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim }
+          else { width = Math.round(width * maxDim / height); height = maxDim }
+        }
+        canvas.width = width; canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        let quality = 0.82
+        let dataUrl = canvas.toDataURL('image/jpeg', quality)
+        while (dataUrl.length > 3 * 1024 * 1024 && quality > 0.3) {
+          quality -= 0.08
+          dataUrl = canvas.toDataURL('image/jpeg', quality)
+        }
+        resolve(dataUrl)
+      }
+      img.onerror = reject
+      img.src = url
+    })
+  }
 
   useEffect(() => {
     if (!token) { navigate('/lw-secure-7x9k'); return }
@@ -205,16 +235,15 @@ export default function AdminPage() {
       method: 'POST', headers,
       body: JSON.stringify({
         code: newCode.code.trim().toUpperCase(),
-        discount_pct: Number(newCode.discount_pct),
         usage_limit: Number(newCode.usage_limit),
+        per_person_limit: newCode.per_person_limit ? Number(newCode.per_person_limit) : undefined,
         expires_at: newCode.expires_at || undefined,
-        description: newCode.description,
       }),
     })
     const data = await res.json()
     if (res.ok) {
       setMsg('✅ Partner code created!')
-      setNewCode({ code: '', discount_pct: '50', usage_limit: '100', expires_at: '', description: '' })
+      setNewCode({ code: '', usage_limit: '100', per_person_limit: '5', expires_at: '' })
       loadAll()
     } else {
       setMsg(`❌ ${data.error || 'Failed to create code'}`)
@@ -763,96 +792,38 @@ export default function AdminPage() {
         {/* PARTNERS TAB */}
         {tab === 'partners' && !loading && (
           <>
-            {/* User Partner Code Settings */}
-            <div style={cardStyle}>
-              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '4px', fontFamily: 'Poppins, sans-serif' }}>👤 User Partner Code Settings</h3>
-              <p style={{ color: '#8888aa', fontSize: '12px', marginBottom: '14px' }}>Each user gets a unique code (e.g. LW21832R). Control discounts and limits here.</p>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', background: 'rgba(155,32,216,0.1)', borderRadius: '10px', padding: '12px 14px' }}>
-                <div>
-                  <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>User Partner Codes</p>
-                  <p style={{ color: '#8888aa', fontSize: '11px' }}>{settings.user_code_enabled ? '✅ Active — users can share their code' : '⛔ Disabled'}</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    const updated = { ...settings, user_code_enabled: !settings.user_code_enabled }
-                    setSettings(updated)
-                    await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(updated) })
-                    setMsg(updated.user_code_enabled ? '✅ User partner codes enabled' : 'User partner codes disabled')
-                  }}
-                  style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: settings.user_code_enabled ? 'rgba(232,24,122,0.3)' : 'linear-gradient(90deg,#f0a500,#e8187a)', color: '#fff', fontWeight: 700, fontSize: '13px' }}
-                >
-                  {settings.user_code_enabled ? 'Turn OFF' : 'Turn ON'}
-                </button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Buyer Discount %</label>
-                  <input type="number" min={1} max={90} value={settings.user_code_buyer_discount_pct}
-                    onChange={e => setSettings(s => ({ ...s, user_code_buyer_discount_pct: Number(e.target.value) }))}
-                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid rgba(155,32,216,0.3)', background: 'rgba(155,32,216,0.1)', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Owner Reward %</label>
-                  <input type="number" min={1} max={50} value={settings.user_code_owner_reward_pct}
-                    onChange={e => setSettings(s => ({ ...s, user_code_owner_reward_pct: Number(e.target.value) }))}
-                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid rgba(155,32,216,0.3)', background: 'rgba(155,32,216,0.1)', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Max Tickets / Draw</label>
-                  <input type="number" min={1} max={50} value={settings.user_code_per_draw_limit}
-                    onChange={e => setSettings(s => ({ ...s, user_code_per_draw_limit: Number(e.target.value) }))}
-                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid rgba(155,32,216,0.3)', background: 'rgba(155,32,216,0.1)', color: '#fff', fontSize: '14px', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-              <p style={{ color: '#8888aa', fontSize: '11px', marginTop: '8px' }}>
-                Example: buyer gets {settings.user_code_buyer_discount_pct}% off · code owner earns {settings.user_code_owner_reward_pct}% of sale as balance reward · limit {settings.user_code_per_draw_limit} tickets per draw per code
-              </p>
-              <button
-                onClick={async () => {
-                  await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
-                  setMsg('✅ User code settings saved')
-                }}
-                style={{ marginTop: '12px', width: '100%', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg,#f0a500,#e8187a)', color: '#fff', fontWeight: 700 }}
-              >
-                Save User Code Settings
-              </button>
-            </div>
-
             {/* Create Business Partner Code */}
             <div style={cardStyle}>
-              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>🏢 Create Business Partner Code</h3>
+              <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '6px', fontFamily: 'Poppins, sans-serif' }}>🏢 নতুন পার্টনার কোড তৈরি করো</h3>
+              <p style={{ color: '#8888aa', fontSize: '12px', marginBottom: '14px' }}>কোড দিয়ে টিকিট কেনার সীমা নিয়ন্ত্রণ করো।</p>
               <form onSubmit={createBusinessCode} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Code (e.g. PROMO2025)</label>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>কোডের নাম (e.g. EID2025)</label>
                   <input
                     type="text"
                     value={newCode.code}
                     onChange={e => setNewCode(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-                    placeholder="PROMO2025"
+                    placeholder="EID2025"
                     required
                     style={inputStyle}
                   />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Discount %</label>
-                    <input type="number" value={newCode.discount_pct} onChange={e => setNewCode(f => ({ ...f, discount_pct: e.target.value }))} min={1} max={90} required style={inputStyle} />
+                    <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>মোট টিকিট লিমিট</label>
+                    <input type="number" value={newCode.usage_limit} onChange={e => setNewCode(f => ({ ...f, usage_limit: e.target.value }))} min={1} required placeholder="100" style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Usage Limit</label>
-                    <input type="number" value={newCode.usage_limit} onChange={e => setNewCode(f => ({ ...f, usage_limit: e.target.value }))} min={1} required style={inputStyle} />
+                    <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>একজনে সর্বোচ্চ টিকিট</label>
+                    <input type="number" value={newCode.per_person_limit} onChange={e => setNewCode(f => ({ ...f, per_person_limit: e.target.value }))} min={1} placeholder="5" style={inputStyle} />
                   </div>
                 </div>
                 <div>
-                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Expires At (optional)</label>
+                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>মেয়াদ শেষের তারিখ (optional)</label>
                   <input type="datetime-local" value={newCode.expires_at} onChange={e => setNewCode(f => ({ ...f, expires_at: e.target.value }))} style={inputStyle} />
                 </div>
-                <div>
-                  <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>Description (optional)</label>
-                  <input type="text" value={newCode.description} onChange={e => setNewCode(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Facebook promo" style={inputStyle} />
-                </div>
                 <button type="submit" style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>
-                  + Create Code
+                  ➕ কোড তৈরি করো
                 </button>
               </form>
             </div>
@@ -862,28 +833,31 @@ export default function AdminPage() {
               Active Codes ({businessCodes.filter(c => c.is_active).length}/{businessCodes.length})
             </h3>
             {businessCodes.length === 0 ? (
-              <p style={{ color: '#8888aa', textAlign: 'center', padding: '24px' }}>No partner codes yet.</p>
+              <p style={{ color: '#8888aa', textAlign: 'center', padding: '24px' }}>কোনো পার্টনার কোড নেই। উপরে নতুন কোড তৈরি করুন।</p>
             ) : businessCodes.map(bc => (
               <div key={bc.id} style={{ ...cardStyle, opacity: bc.is_active ? 1 : 0.55, border: `1px solid ${bc.is_active ? 'rgba(240,165,0,0.3)' : 'rgba(155,32,216,0.15)'}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
                     <p style={{ color: '#f0a500', fontWeight: 800, fontSize: '16px', fontFamily: 'monospace', letterSpacing: '2px' }}>{bc.code}</p>
-                    {bc.description && <p style={{ color: '#8888aa', fontSize: '12px' }}>{bc.description}</p>}
+                    <p style={{ color: '#8888aa', fontSize: '12px' }}>
+                      মোট লিমিট: {bc.usage_limit} টিকিট
+                      {bc.per_person_limit ? ` · একজনে সর্বোচ্চ: ${bc.per_person_limit}` : ''}
+                    </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ color: '#e8187a', fontWeight: 700, fontSize: '16px' }}>{bc.discount_pct}% off</p>
-                    <p style={{ color: '#8888aa', fontSize: '11px' }}>{bc.usage_count}/{bc.usage_limit} used</p>
+                    <p style={{ color: '#4f4', fontWeight: 700, fontSize: '13px' }}>{bc.usage_count}/{bc.usage_limit} ব্যবহার</p>
+                    <p style={{ color: bc.is_active ? '#9b20d8' : '#888', fontSize: '11px', fontWeight: 700 }}>{bc.is_active ? '● সক্রিয়' : '○ বন্ধ'}</p>
                   </div>
                 </div>
                 {bc.expires_at && (
                   <p style={{ color: new Date(bc.expires_at) < new Date() ? '#f88' : '#8888aa', fontSize: '11px', marginBottom: '8px' }}>
-                    Expires: {new Date(bc.expires_at).toLocaleDateString('en-GB')}
-                    {new Date(bc.expires_at) < new Date() && ' ⚠️ EXPIRED'}
+                    মেয়াদ: {new Date(bc.expires_at).toLocaleDateString('bn-BD')}
+                    {new Date(bc.expires_at) < new Date() && ' ⚠️ মেয়াদ শেষ'}
                   </p>
                 )}
                 {/* Progress bar */}
                 <div style={{ background: 'rgba(155,32,216,0.2)', borderRadius: '4px', height: '4px', marginBottom: '10px' }}>
-                  <div style={{ width: `${Math.min(100, (bc.usage_count / bc.usage_limit) * 100)}%`, background: '#e8187a', borderRadius: '4px', height: '100%' }} />
+                  <div style={{ width: `${Math.min(100, (bc.usage_count / bc.usage_limit) * 100)}%`, background: '#9b20d8', borderRadius: '4px', height: '100%' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
@@ -948,24 +922,37 @@ export default function AdminPage() {
                           type="file"
                           accept={newAd.type === 'image' ? 'image/*' : 'video/*'}
                           style={{ display: 'none' }}
-                          onChange={e => {
+                          onChange={async e => {
                             const file = e.target.files?.[0]
                             if (!file) return
-                            const maxMB = newAd.type === 'image' ? 5 : 20
-                            if (file.size > maxMB * 1024 * 1024) {
-                              setAdUploadError(`ফাইল সাইজ ${maxMB}MB এর বেশি হবে না`)
-                              return
-                            }
-                            setAdUploadError(null)
-                            setAdUploading(true)
-                            const reader = new FileReader()
-                            reader.onload = ev => {
-                              const dataUrl = ev.target?.result as string
-                              setNewAd(f => ({ ...f, content: dataUrl }))
-                              setAdFilePreview(dataUrl)
+                            if (newAd.type === 'image') {
+                              setAdUploadError(null)
+                              setAdUploading(true)
+                              try {
+                                const compressed = await compressImage(file)
+                                setNewAd(f => ({ ...f, content: compressed }))
+                                setAdFilePreview(compressed)
+                              } catch {
+                                setAdUploadError('ছবি প্রসেস করা যায়নি। আবার চেষ্টা করুন।')
+                              }
                               setAdUploading(false)
+                            } else {
+                              const maxMB = 3
+                              if (file.size > maxMB * 1024 * 1024) {
+                                setAdUploadError(`ভিডিও সাইজ ${maxMB}MB এর বেশি হবে না`)
+                                return
+                              }
+                              setAdUploadError(null)
+                              setAdUploading(true)
+                              const reader = new FileReader()
+                              reader.onload = ev => {
+                                const dataUrl = ev.target?.result as string
+                                setNewAd(f => ({ ...f, content: dataUrl }))
+                                setAdFilePreview(dataUrl)
+                                setAdUploading(false)
+                              }
+                              reader.readAsDataURL(file)
                             }
-                            reader.readAsDataURL(file)
                           }}
                         />
                       </label>

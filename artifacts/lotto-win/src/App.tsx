@@ -16,6 +16,7 @@ import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPage from './pages/AdminPage'
 import WinnerPage from './pages/WinnerPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import TermsPage from './pages/TermsPage'
 import NotFound from './pages/not-found'
 
 const queryClient = new QueryClient()
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/notifications" component={NotificationsPage} />
       <Route path="/winner" component={WinnerPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/terms" component={TermsPage} />
       <Route path="/lw-secure-7x9k" component={AdminLoginPage} />
       <Route path="/admin" component={AdminGuard} />
       <Route component={NotFound} />
