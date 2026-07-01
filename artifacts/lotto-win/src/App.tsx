@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from 'wouter'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './components/AuthProvider'
@@ -40,6 +41,17 @@ function AdminGuard() {
   return <AdminPage />
 }
 
+function ReferralCapture() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref && ref.trim()) {
+      localStorage.setItem('lw_ref_code', ref.trim().toUpperCase())
+    }
+  }, [])
+  return null
+}
+
 function Router() {
   return (
     <Switch>
@@ -67,6 +79,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+          <ReferralCapture />
           <Router />
         </WouterRouter>
       </AuthProvider>

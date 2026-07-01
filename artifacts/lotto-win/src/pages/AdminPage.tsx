@@ -6,7 +6,19 @@ import { formatCurrency, formatDate, formatJackpot } from '../lib/utils'
 import { API_BASE } from '../lib/apiBase'
 const BASE = API_BASE
 
-type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads' | 'partners' | 'security'
+type Tab = 'deposits' | 'draws' | 'users' | 'settings' | 'ads' | 'partners' | 'security' | 'campaigns'
+
+type CampaignType = 'partner_discount' | 'free_ticket' | 'unlimited_internet' | 'cashback' | 'giveaway' | 'buy_x_get_y' | 'special_offer'
+
+interface Campaign {
+  id: string
+  draw_id: string
+  campaign_type: CampaignType
+  title: string
+  config: string
+  is_active: boolean
+  created_at: string
+}
 
 interface BusinessCode {
   id: string
@@ -36,6 +48,12 @@ export default function AdminPage() {
   const [settings, setSettings] = useState<Settings>({ bkash_number: '', nagad_number: '', rocket_number: '', whatsapp_number: '', payment_number: '', announcement: '', user_code_enabled: false, user_code_buyer_discount_pct: 15, user_code_owner_reward_pct: 5, user_code_per_draw_limit: 5 })
   const [ads, setAds] = useState<Ad[]>([])
   const [businessCodes, setBusinessCodes] = useState<BusinessCode[]>([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [selectedDrawId, setSelectedDrawId] = useState<string>('')
+  const [campaignType, setCampaignType] = useState<CampaignType>('partner_discount')
+  const [campaignTitle, setCampaignTitle] = useState('')
+  const [campaignConfig, setCampaignConfig] = useState<Record<string, string | number>>({})
+  const [campaignResult, setCampaignResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [newAd, setNewAd] = useState({ type: 'text', title: '', content: '', link_url: '' })
   const [adFilePreview, setAdFilePreview] = useState<string | null>(null)
   const [adUploadError, setAdUploadError] = useState<string | null>(null)
@@ -72,13 +90,14 @@ export default function AdminPage() {
   const loadAll = async () => {
     setLoading(true)
     try {
-      const [d, dr, u, s, a, bc] = await Promise.all([
+      const [d, dr, u, s, a, bc, camp] = await Promise.all([
         fetch(`${BASE}/api/admin/deposits`, { headers }).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/draws`).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/admin/users`, { headers }).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/settings`).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/ads/all`, { headers }).then(r => r.json()).catch(() => ({})),
         fetch(`${BASE}/api/business-codes`, { headers }).then(r => r.json()).catch(() => ({})),
+        fetch(`${BASE}/api/campaigns/all`, { headers }).then(r => r.json()).catch(() => ({})),
       ])
       setDeposits(d.deposits || [])
       setDraws(dr.draws || [])
@@ -86,6 +105,7 @@ export default function AdminPage() {
       if (s.settings) setSettings(s.settings)
       setAds(a.ads || [])
       setBusinessCodes(bc.codes || [])
+      setCampaigns(camp.campaigns || [])
     } catch (e) {
       console.error('loadAll failed', e)
     } finally {
@@ -201,6 +221,72 @@ export default function AdminPage() {
     }
   }
 
+  const campaignTypeLabels: Record<CampaignType, string> = {
+    partner_discount: '🏷️ Business Partner Discount',
+    free_ticket: '🎟️ Free Ticket',
+    unlimited_internet: '📶 Unlimited Internet',
+    cashback: '💰 Cashback',
+    giveaway: '🎁 Giveaway',
+    buy_x_get_y: '🛒 Buy X Get Y',
+    special_offer: '⭐ Special Offer (Eid/Event)',
+  }
+
+  const campaignConfigFields: Record<CampaignType, { key: string; label: string; type: 'number' | 'text'; placeholder: string }[]> = {
+    partner_discount: [{ key: 'discount_pct', label: 'Discount %', type: 'number', placeholder: '20' }],
+    free_ticket: [{ key: 'winners_count', label: 'কতজন Free Ticket পাবে', type: 'number', placeholder: '5' }],
+    unlimited_internet: [{ key: 'winners_count', label: 'কতজন Winner হবে', type: 'number', placeholder: '3' }],
+    cashback: [{ key: 'amount', label: 'Cashback টাকা (৳)', type: 'number', placeholder: '100' }],
+    giveaway: [
+      { key: 'prize', label: 'Prize বিবরণ', type: 'text', placeholder: 'iPhone 16, Laptop...' },
+      { key: 'winners_count', label: 'কতজন Winner হবে', type: 'number', placeholder: '2' },
+    ],
+    buy_x_get_y: [
+      { key: 'buy_x', label: 'Buy কতটা', type: 'number', placeholder: '2' },
+      { key: 'get_y', label: 'Get কতটা', type: 'number', placeholder: '1' },
+    ],
+    special_offer: [
+      { key: 'discount_pct', label: 'Discount %', type: 'number', placeholder: '30' },
+      { key: 'label', label: 'অফারের নাম', type: 'text', placeholder: 'Eid Special, New Year...' },
+    ],
+  }
+
+  const createCampaign = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedDrawId || !campaignTitle.trim()) return
+    setCampaignResult(null)
+    const res = await fetch(`${BASE}/api/campaigns`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        draw_id: selectedDrawId,
+        campaign_type: campaignType,
+        title: campaignTitle.trim(),
+        config: campaignConfig,
+      }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setCampaignResult({ ok: true, text: '✅ Campaign তৈরি হয়েছে!' })
+      setCampaignTitle('')
+      setCampaignConfig({})
+      setTimeout(() => setCampaignResult(null), 3000)
+      loadAll()
+    } else {
+      setCampaignResult({ ok: false, text: `❌ ${data.error || 'Failed'}` })
+      setTimeout(() => setCampaignResult(null), 3000)
+    }
+  }
+
+  const deleteCampaign = async (id: string) => {
+    if (!confirm('এই Campaign মুছে ফেলবেন?')) return
+    await fetch(`${BASE}/api/campaigns/${id}`, { method: 'DELETE', headers })
+    loadAll()
+  }
+
+  const toggleCampaign = async (id: string, is_active: boolean) => {
+    await fetch(`${BASE}/api/campaigns/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ is_active }) })
+    loadAll()
+  }
+
   const toggleCodeActive = async (id: string, is_active: boolean) => {
     await fetch(`${BASE}/api/business-codes/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ is_active }) })
     loadAll()
@@ -307,10 +393,11 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '20px' }}>
-          {(['deposits', 'draws', 'users', 'partners', 'settings', 'ads', 'security'] as Tab[]).map(t => (
+          {(['deposits', 'draws', 'campaigns', 'users', 'partners', 'settings', 'ads', 'security'] as Tab[]).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ ...tabStyle(t), flexShrink: 0 }}>
               {t === 'deposits' ? '💰 Deposits'
                 : t === 'draws' ? '🏆 Draws'
+                : t === 'campaigns' ? '🎯 Campaigns'
                 : t === 'users' ? '👥 Users'
                 : t === 'partners' ? '🏢 Partners'
                 : t === 'settings' ? '⚙️ Settings'
@@ -319,6 +406,146 @@ export default function AdminPage() {
             </button>
           ))}
         </div>
+
+        {/* CAMPAIGNS TAB */}
+        {tab === 'campaigns' && !loading && (
+          <>
+            <h3 style={{ color: '#fff', fontWeight: 700, marginBottom: '14px', fontFamily: 'Poppins, sans-serif' }}>🎯 Campaign Management</h3>
+
+            {/* Step 1: Draw selector */}
+            <div>
+              <div style={{ background: '#100f28', borderRadius: '14px', border: '1px solid rgba(155,32,216,0.2)', padding: '16px', marginBottom: '12px' }}>
+                <p style={{ color: '#9b20d8', fontWeight: 700, fontSize: '13px', marginBottom: '10px' }}>Step 1: Draw নির্বাচন করো</p>
+                <select
+                  value={selectedDrawId}
+                  onChange={e => setSelectedDrawId(e.target.value)}
+                  style={{ ...inputStyle }}
+                >
+                  <option value="">— Draw বেছে নিন —</option>
+                  {draws.map(d => (
+                    <option key={d.id} value={d.id}>{d.name} ({d.status})</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedDrawId && (
+                <>
+                  {/* Step 2: Campaign form */}
+                  <div style={{ background: '#100f28', borderRadius: '14px', border: '1px solid rgba(232,24,122,0.25)', padding: '16px', marginBottom: '12px' }}>
+                    <p style={{ color: '#e8187a', fontWeight: 700, fontSize: '13px', marginBottom: '12px' }}>Step 2: Add Campaign</p>
+                    <form onSubmit={createCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div>
+                        <label style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Campaign Title</label>
+                        <input
+                          value={campaignTitle}
+                          onChange={e => setCampaignTitle(e.target.value)}
+                          placeholder="e.g. Eid Special Offer"
+                          required
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '8px' }}>Step 3: Campaign Type নির্বাচন করো</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {(Object.keys(campaignTypeLabels) as CampaignType[]).map(t => (
+                            <label key={t} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 10px', borderRadius: '8px', background: campaignType === t ? 'rgba(155,32,216,0.15)' : 'transparent', border: `1px solid ${campaignType === t ? 'rgba(155,32,216,0.5)' : 'rgba(155,32,216,0.1)'}`, transition: 'all 0.2s' }}>
+                              <input
+                                type="radio"
+                                name="campaign_type"
+                                value={t}
+                                checked={campaignType === t}
+                                onChange={() => { setCampaignType(t); setCampaignConfig({}) }}
+                                style={{ accentColor: '#9b20d8' }}
+                              />
+                              <span style={{ color: '#fff', fontSize: '13px', fontWeight: 500 }}>{campaignTypeLabels[t]}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Dynamic config fields */}
+                      {campaignConfigFields[campaignType].length > 0 && (
+                        <div style={{ borderTop: '1px solid rgba(155,32,216,0.15)', paddingTop: '10px' }}>
+                          <p style={{ color: '#9999bb', fontSize: '12px', marginBottom: '8px' }}>⚙️ Campaign Settings:</p>
+                          {campaignConfigFields[campaignType].map(field => (
+                            <div key={field.key} style={{ marginBottom: '8px' }}>
+                              <label style={{ color: '#aaa', fontSize: '12px', display: 'block', marginBottom: '4px' }}>{field.label}</label>
+                              <input
+                                type={field.type}
+                                value={String(campaignConfig[field.key] || '')}
+                                onChange={e => setCampaignConfig(c => ({ ...c, [field.key]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                                placeholder={field.placeholder}
+                                style={inputStyle}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {campaignResult && (
+                        <p style={{ color: campaignResult.ok ? '#4f4' : '#f88', fontSize: '13px', fontWeight: 600 }}>{campaignResult.text}</p>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={!selectedDrawId || !campaignTitle.trim()}
+                        style={{ padding: '11px', borderRadius: '10px', border: 'none', cursor: (!selectedDrawId || !campaignTitle.trim()) ? 'not-allowed' : 'pointer', background: 'linear-gradient(90deg, #9b20d8, #e8187a)', color: '#fff', fontWeight: 700, fontSize: '14px', opacity: (!selectedDrawId || !campaignTitle.trim()) ? 0.5 : 1 }}
+                      >
+                        ➕ Campaign যোগ করো
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Campaigns list for selected draw */}
+                  <div>
+                    <p style={{ color: '#aaa', fontWeight: 700, fontSize: '13px', marginBottom: '10px' }}>
+                      📋 এই Draw-এর Campaigns ({campaigns.filter(c => c.draw_id === selectedDrawId).length})
+                    </p>
+                    {campaigns.filter(c => c.draw_id === selectedDrawId).length === 0 ? (
+                      <p style={{ color: '#8888aa', fontSize: '13px', textAlign: 'center', padding: '16px' }}>কোনো campaign নেই। উপরে নতুন campaign যোগ করুন।</p>
+                    ) : campaigns.filter(c => c.draw_id === selectedDrawId).map(camp => {
+                      let configObj: Record<string, string | number> = {}
+                      try { configObj = JSON.parse(camp.config) } catch { configObj = {} }
+                      return (
+                        <div key={camp.id} style={{ background: '#0d0c22', borderRadius: '12px', border: `1px solid ${camp.is_active ? 'rgba(155,32,216,0.3)' : 'rgba(136,136,170,0.15)'}`, padding: '12px 14px', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                            <div style={{ flex: 1 }}>
+                              <p style={{ color: '#fff', fontWeight: 700, fontSize: '14px', marginBottom: '3px' }}>{camp.title}</p>
+                              <p style={{ color: '#9b20d8', fontSize: '12px', marginBottom: '4px' }}>{campaignTypeLabels[camp.campaign_type]}</p>
+                              {Object.entries(configObj).map(([k, v]) => (
+                                <span key={k} style={{ display: 'inline-block', background: 'rgba(155,32,216,0.1)', borderRadius: '6px', padding: '2px 8px', marginRight: '6px', marginBottom: '4px', color: '#ccc', fontSize: '11px' }}>
+                                  {k}: {v}
+                                </span>
+                              ))}
+                            </div>
+                            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: camp.is_active ? 'rgba(34,197,94,0.15)' : 'rgba(136,136,170,0.15)', color: camp.is_active ? '#6ee7a0' : '#8888aa', border: `1px solid ${camp.is_active ? 'rgba(34,197,94,0.3)' : 'rgba(136,136,170,0.3)'}`, flexShrink: 0, marginLeft: '8px' }}>
+                              {camp.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              onClick={() => toggleCampaign(camp.id, !camp.is_active)}
+                              style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: camp.is_active ? 'rgba(136,136,170,0.15)' : 'rgba(34,197,94,0.15)', color: camp.is_active ? '#8888aa' : '#6ee7a0', fontSize: '12px', fontWeight: 600 }}
+                            >
+                              {camp.is_active ? '⏸ Deactivate' : '▶️ Activate'}
+                            </button>
+                            <button
+                              onClick={() => deleteCampaign(camp.id)}
+                              style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'rgba(232,24,122,0.1)', color: '#e8187a', fontSize: '12px', fontWeight: 600 }}
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
 
         {/* DEPOSITS TAB */}
         {tab === 'deposits' && !loading && (

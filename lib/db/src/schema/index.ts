@@ -154,6 +154,36 @@ export const userCodeUsagesTable = pgTable('user_code_usages', {
   usageUnique: uniqueIndex('user_code_usage_unique').on(table.partner_code, table.draw_id, table.buyer_id),
 }))
 
+export const campaignTypeEnum = pgEnum('campaign_type', [
+  'partner_discount',
+  'free_ticket',
+  'unlimited_internet',
+  'cashback',
+  'giveaway',
+  'buy_x_get_y',
+  'special_offer',
+])
+
+export const campaignsTable = pgTable('campaigns', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  draw_id: uuid('draw_id').notNull().references(() => drawsTable.id, { onDelete: 'cascade' }),
+  campaign_type: campaignTypeEnum('campaign_type').notNull(),
+  title: text('title').notNull().default(''),
+  config: text('config').notNull().default('{}'),
+  is_active: boolean('is_active').notNull().default(true),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const referralsTable = pgTable('referrals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  referrer_id: uuid('referrer_id').notNull().references(() => usersTable.id),
+  referred_id: uuid('referred_id').notNull().references(() => usersTable.id),
+  first_draw_id: uuid('first_draw_id').references(() => drawsTable.id),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  referredUnique: uniqueIndex('referrals_referred_unique').on(table.referred_id),
+}))
+
 export const adsTable = pgTable('ads', {
   id: uuid('id').primaryKey().defaultRandom(),
   type: adTypeEnum('type').notNull().default('text'),
@@ -227,3 +257,5 @@ export type Notification = typeof notificationsTable.$inferSelect
 export type Settings = typeof settingsTable.$inferSelect
 export type AdminAuditLog = typeof adminAuditLogsTable.$inferSelect
 export type LoginAuditLog = typeof loginAuditLogsTable.$inferSelect
+export type Campaign = typeof campaignsTable.$inferSelect
+export type Referral = typeof referralsTable.$inferSelect

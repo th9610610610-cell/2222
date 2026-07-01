@@ -32,6 +32,7 @@ export default function DrawsPage() {
   const [couponCode, setCouponCode] = useState<Record<string, string>>({})
   const [couponState, setCouponState] = useState<Record<string, CouponState>>({})
   const [drawResult, setDrawResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
+  const [termsAccepted, setTermsAccepted] = useState<Record<string, boolean>>({})
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const hasActiveBonus = (user?.referral_bonus_pct ?? 0) > 0 &&
@@ -99,6 +100,7 @@ export default function DrawsPage() {
 
   const canBuy = (drawId: string): boolean => {
     if (buying === drawId) return false
+    if (!termsAccepted[drawId]) return false
     const cs = couponState[drawId]
     const code = couponCode[drawId]?.trim()
     if (!code) return true
@@ -350,12 +352,31 @@ export default function DrawsPage() {
                         ? '⏳ Processing...'
                         : drawResult[draw.id]
                           ? drawResult[draw.id]!.text
-                          : buyDisabled && code
-                            ? cs?.status === 'checking' ? '⏳ Verifying...' : '🚫 Invalid Code'
-                            : `Buy · ${formatCurrency(totalPrice)}${effectiveDiscount > 0 ? ` (${effectiveDiscount}% off)` : ''}`
+                          : !termsAccepted[draw.id]
+                            ? '📋 শর্তাবলী মেনে নিন'
+                            : buyDisabled && code
+                              ? cs?.status === 'checking' ? '⏳ Verifying...' : '🚫 Invalid Code'
+                              : `Buy · ${formatCurrency(totalPrice)}${effectiveDiscount > 0 ? ` (${effectiveDiscount}% off)` : ''}`
                       }
                     </button>
                   </div>
+
+                  {/* Terms & Conditions Checkbox — 5px below buy button */}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '9px', marginTop: '5px', cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!termsAccepted[draw.id]}
+                      onChange={e => setTermsAccepted(t => ({ ...t, [draw.id]: e.target.checked }))}
+                      style={{ width: '16px', height: '16px', accentColor: '#9b20d8', flexShrink: 0, cursor: 'pointer' }}
+                    />
+                    <span style={{ color: '#9999bb', fontSize: '11px', fontFamily: 'Poppins, sans-serif', lineHeight: 1.4 }}>
+                      আমি{' '}
+                      <a href="https://lotto-wins.vercel.app/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#9b20d8', textDecoration: 'underline' }}>
+                        শর্ত ও নিয়মাবলী
+                      </a>{' '}
+                      পড়েছি এবং সম্মত আছি
+                    </span>
+                  </label>
                 </div>
               )}
             </div>
