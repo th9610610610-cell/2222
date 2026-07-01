@@ -56,45 +56,61 @@ export default function LoginPage() {
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const res = await fetch(`${BASE}/api/auth/login`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error || 'Login failed'); setFailedAttempts(f => f + 1); return }
-    localStorage.setItem('lw_token', data.token)
-    await refresh()
-    navigate('/')
+    try {
+      const res = await fetch(`${BASE}/api/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      })
+      const data = await res.json()
+      setLoading(false)
+      if (!res.ok) { setError(data.error || 'Login failed'); setFailedAttempts(f => f + 1); return }
+      localStorage.setItem('lw_token', data.token)
+      await refresh()
+      navigate('/')
+    } catch (err) {
+      setLoading(false)
+      setError('Cannot reach server. Please try again.')
+      setFailedAttempts(f => f + 1)
+    }
   }
 
   // ── OTP login step 1: request OTP ─────────────────────────────────
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const res = await fetch(`${BASE}/api/auth/login/otp-request`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: otpEmail.trim().toLowerCase() }),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error || 'Failed to send OTP'); return }
-    setOtpEmailConfirmed(data.email || otpEmail.trim().toLowerCase())
-    setOtpStep('verify')
+    try {
+      const res = await fetch(`${BASE}/api/auth/login/otp-request`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail.trim().toLowerCase() }),
+      })
+      const data = await res.json()
+      setLoading(false)
+      if (!res.ok) { setError(data.error || 'Failed to send OTP'); return }
+      setOtpEmailConfirmed(data.email || otpEmail.trim().toLowerCase())
+      setOtpStep('verify')
+    } catch (err) {
+      setLoading(false)
+      setError('Cannot reach server. Please try again.')
+    }
   }
 
   // ── OTP login step 1 resend ───────────────────────────────────────
   const handleResend = async () => {
     setError(''); setResendMsg(''); setLoading(true)
-    const res = await fetch(`${BASE}/api/auth/login/otp-request`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: otpEmail.trim().toLowerCase() }),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error || 'Could not resend OTP'); return }
-    setResendMsg('OTP resent! Check your inbox.')
-    setResendKey(k => k + 1)
+    try {
+      const res = await fetch(`${BASE}/api/auth/login/otp-request`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail.trim().toLowerCase() }),
+      })
+      const data = await res.json()
+      setLoading(false)
+      if (!res.ok) { setError(data.error || 'Could not resend OTP'); return }
+      setResendMsg('OTP resent! Check your inbox.')
+      setResendKey(k => k + 1)
+    } catch (err) {
+      setLoading(false)
+      setError('Cannot reach server. Please try again.')
+    }
   }
 
   // ── OTP login step 2: verify ──────────────────────────────────────
@@ -102,16 +118,21 @@ export default function LoginPage() {
     e.preventDefault()
     if (otp.length < 6) { setError('Enter the 6-digit OTP'); return }
     setError(''); setLoading(true)
-    const res = await fetch(`${BASE}/api/auth/login/verify`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: otpEmailConfirmed, otp }),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error || 'Verification failed'); return }
-    localStorage.setItem('lw_token', data.token)
-    await refresh()
-    navigate('/')
+    try {
+      const res = await fetch(`${BASE}/api/auth/login/verify`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmailConfirmed, otp }),
+      })
+      const data = await res.json()
+      setLoading(false)
+      if (!res.ok) { setError(data.error || 'Verification failed'); return }
+      localStorage.setItem('lw_token', data.token)
+      await refresh()
+      navigate('/')
+    } catch (err) {
+      setLoading(false)
+      setError('Cannot reach server. Please try again.')
+    }
   }
 
   const maskedOtpEmail = otpEmailConfirmed ? otpEmailConfirmed.replace(/(.{2}).+(@.+)/, '$1***$2') : ''

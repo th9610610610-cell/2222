@@ -27,30 +27,38 @@ export default function AdminLoginPage() {
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(''); setLoading(true)
-    const res = await fetch(`${BASE}/api/auth/login`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error || 'Login failed'); return }
+    try {
+      const res = await fetch(`${BASE}/api/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      })
+      const data = await res.json()
+      setLoading(false)
+      if (!res.ok) { setError(data.error || 'Login failed'); return }
 
-    if (!['admin', 'moderator'].includes(data.user?.role)) {
-      setError('Access denied. Admin only.'); return
+      if (!['admin', 'moderator'].includes(data.user?.role)) {
+        setError('Access denied. Admin only.'); return
+      }
+
+      localStorage.setItem('lw_token', data.token)
+      sessionStorage.setItem('lw_admin_verified', '1')
+      await refresh()
+      navigate('/admin')
+    } catch (err) {
+      setLoading(false)
+      setError('Cannot reach server. Please try again.')
     }
-
-    localStorage.setItem('lw_token', data.token)
-    sessionStorage.setItem('lw_admin_verified', '1')
-    await refresh()
-    navigate('/admin')
   }
 
   const handleResend = async () => {
     setError(''); setLoading(true)
-    await fetch(`${BASE}/api/auth/login/otp-request`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
-    })
+    try {
+      await fetch(`${BASE}/api/auth/login/otp-request`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      })
+    } catch {
+    }
     setLoading(false)
     setResendKey(k => k + 1)
   }
@@ -59,20 +67,25 @@ export default function AdminLoginPage() {
     e.preventDefault()
     if (otp.length < 6) { setError('Enter the 6-digit OTP'); return }
     setError(''); setLoading(true)
-    const res = await fetch(`${BASE}/api/auth/login/verify`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: otpEmail, otp }),
-    })
-    const data = await res.json()
-    setLoading(false)
-    if (!res.ok) { setError(data.error || 'Verification failed'); return }
-    if (!['admin', 'moderator'].includes(data.user?.role)) {
-      setError('Access denied. Admin only.'); return
+    try {
+      const res = await fetch(`${BASE}/api/auth/login/verify`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpEmail, otp }),
+      })
+      const data = await res.json()
+      setLoading(false)
+      if (!res.ok) { setError(data.error || 'Verification failed'); return }
+      if (!['admin', 'moderator'].includes(data.user?.role)) {
+        setError('Access denied. Admin only.'); return
+      }
+      localStorage.setItem('lw_token', data.token)
+      sessionStorage.setItem('lw_admin_verified', '1')
+      await refresh()
+      navigate('/admin')
+    } catch (err) {
+      setLoading(false)
+      setError('Cannot reach server. Please try again.')
     }
-    localStorage.setItem('lw_token', data.token)
-    sessionStorage.setItem('lw_admin_verified', '1')
-    await refresh()
-    navigate('/admin')
   }
 
   const maskedEmail = otpEmail ? otpEmail.replace(/(.{2}).+(@.+)/, '$1***$2') : ''
