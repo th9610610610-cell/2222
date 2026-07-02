@@ -964,11 +964,11 @@ export default function AdminPage() {
                       {adUploadError && <p style={{ color: '#e8187a', fontSize: '12px', marginTop: '6px' }}>⚠️ {adUploadError}</p>}
                       {adUploading && <p style={{ color: '#9b20d8', fontSize: '12px', marginTop: '6px' }}>⏳ লোড হচ্ছে...</p>}
                       {adFilePreview && (
-                        <div style={{ marginTop: '10px', borderRadius: '10px', overflow: 'hidden', height: '120px', position: 'relative' }}>
+                        <div style={{ marginTop: '10px', borderRadius: '10px', overflow: 'hidden', background: '#000', position: 'relative' }}>
                           {newAd.type === 'image' ? (
-                            <img src={adFilePreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={adFilePreview} alt="preview" style={{ width: '100%', height: 'auto', maxHeight: '240px', objectFit: 'contain', display: 'block' }} />
                           ) : (
-                            <video src={adFilePreview} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <video src={adFilePreview} muted style={{ width: '100%', height: 'auto', maxHeight: '240px', objectFit: 'contain', display: 'block' }} />
                           )}
                           <div style={{ position: 'absolute', bottom: '6px', right: '8px', background: 'rgba(0,0,0,0.6)', color: '#4f4', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>Preview</div>
                         </div>
@@ -1031,12 +1031,12 @@ export default function AdminPage() {
                 </div>
                 {ad.title && <p style={{ color: '#fff', fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{ad.title}</p>}
                 {ad.type === 'image' && ad.content ? (
-                  <div style={{ borderRadius: '8px', overflow: 'hidden', height: '80px', marginBottom: '6px' }}>
-                    <img src={ad.content} alt={ad.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', background: '#000', marginBottom: '6px' }}>
+                    <img src={ad.content} alt={ad.title} style={{ width: '100%', height: 'auto', maxHeight: '160px', objectFit: 'contain', display: 'block' }} />
                   </div>
                 ) : ad.type === 'video' && ad.content ? (
-                  <div style={{ borderRadius: '8px', overflow: 'hidden', height: '80px', marginBottom: '6px', position: 'relative' }}>
-                    <video src={ad.content} muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', background: '#000', marginBottom: '6px', position: 'relative' }}>
+                    <video src={ad.content} muted style={{ width: '100%', height: 'auto', maxHeight: '160px', objectFit: 'contain', display: 'block' }} />
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span style={{ fontSize: '28px', opacity: 0.8 }}>▶️</span>
                     </div>

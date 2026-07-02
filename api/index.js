@@ -78844,6 +78844,8 @@ function buildApp() {
       allowedHeaders: ["Content-Type", "Authorization"]
     })
   );
+  app.use("/api/ads", import_express18.default.json({ limit: "25mb" }));
+  app.use("/api/ads", import_express18.default.urlencoded({ extended: true, limit: "25mb" }));
   app.use(import_express18.default.json({ limit: "10kb" }));
   app.use(import_express18.default.urlencoded({ extended: true, limit: "10kb" }));
   app.use((req, _res, next) => {

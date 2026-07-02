@@ -20,6 +20,14 @@ interface CouponState {
   message: string | null
 }
 
+interface DrawCampaign {
+  id: string
+  draw_id: string
+  campaign_type: string
+  title: string
+  is_active: boolean
+}
+
 const emptyCoupon = (): CouponState => ({ status: 'idle', discount_pct: 0, type: null, error: null, message: null })
 
 export default function DrawsPage() {
@@ -32,7 +40,7 @@ export default function DrawsPage() {
   const [couponCode, setCouponCode] = useState<Record<string, string>>({})
   const [couponState, setCouponState] = useState<Record<string, CouponState>>({})
   const [drawResult, setDrawResult] = useState<Record<string, { ok: boolean; text: string } | null>>({})
-  const [termsAccepted, setTermsAccepted] = useState<Record<string, boolean>>({})
+  const [campaigns, setCampaigns] = useState<DrawCampaign[]>([])
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const hasActiveBonus = (user?.referral_bonus_pct ?? 0) > 0 &&
@@ -44,11 +52,28 @@ export default function DrawsPage() {
     load()
   }, [token])
 
-  const load = () => {
-    fetch(`${BASE}/api/draws`)
-      .then(r => r.json())
-      .then(d => { setDraws(d.draws || []); setLoading(false) })
-      .catch(() => setLoading(false))
+  const load = async () => {
+    try {
+      const d = await fetch(`${BASE}/api/draws`).then(r => r.json())
+      const fetchedDraws: Draw[] = d.draws || []
+      setDraws(fetchedDraws)
+      setLoading(false)
+
+      const liveDraws = fetchedDraws.filter(draw => draw.status === 'live' || draw.status === 'upcoming')
+      if (liveDraws.length > 0 && token) {
+        const results = await Promise.all(
+          liveDraws.map(draw =>
+            fetch(`${BASE}/api/campaigns?draw_id=${draw.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then(r => r.json()).catch(() => ({ campaigns: [] }))
+          )
+        )
+        const all = results.flatMap((r: any) => r.campaigns || [])
+        setCampaigns(all.filter((c: DrawCampaign) => c.is_active))
+      }
+    } catch {
+      setLoading(false)
+    }
   }
 
   const handleCouponChange = (drawId: string, value: string) => {
@@ -100,7 +125,6 @@ export default function DrawsPage() {
 
   const canBuy = (drawId: string): boolean => {
     if (buying === drawId) return false
-    if (!termsAccepted[drawId]) return false
     const cs = couponState[drawId]
     const code = couponCode[drawId]?.trim()
     if (!code) return true
@@ -220,6 +244,11 @@ export default function DrawsPage() {
           const code = couponCode[draw.id] || ''
           const buyDisabled = !canBuy(draw.id)
 
+          const drawCampaigns = campaigns.filter(c => c.draw_id === draw.id)
+          const bogoCampaign = drawCampaigns.find(c => c.campaign_type === 'buy_x_get_y')
+          const offerCampaign = drawCampaigns.find(c => c.campaign_type === 'special_offer')
+          const activeCampaign = bogoCampaign || offerCampaign
+
           return (
             <div key={draw.id} style={cardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -272,6 +301,31 @@ export default function DrawsPage() {
 
               {draw.status === 'live' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                  {/* Campaign Badge */}
+                  {activeCampaign && (
+                    <div style={{
+                      background: bogoCampaign
+                        ? 'linear-gradient(90deg, rgba(232,24,122,0.2), rgba(155,32,216,0.15))'
+                        : 'linear-gradient(90deg, rgba(240,165,0,0.2), rgba(232,24,122,0.15))',
+                      border: `1px solid ${bogoCampaign ? 'rgba(232,24,122,0.5)' : 'rgba(240,165,0,0.5)'}`,
+                      borderRadius: '10px', padding: '8px 14px',
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                    }}>
+                      <span style={{ fontSize: '18px' }}>{bogoCampaign ? '🎁' : '🔥'}</span>
+                      <div>
+                        <p style={{
+                          color: bogoCampaign ? '#e8187a' : '#f0a500',
+                          fontWeight: 800, fontSize: '13px', fontFamily: 'Poppins, sans-serif',
+                        }}>
+                          {bogoCampaign ? 'BUY ONE GET ONE FREE' : '50% SPECIAL OFFER'}
+                        </p>
+                        <p style={{ color: '#ccc', fontSize: '11px', fontFamily: 'Poppins, sans-serif' }}>
+                          {activeCampaign.title}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Coupon Code Input (only if no active bonus) */}
                   {!hasActiveBonus && (
@@ -340,43 +394,45 @@ export default function DrawsPage() {
                             ? 'rgba(136,136,170,0.2)'
                             : effectiveDiscount > 0
                               ? 'linear-gradient(90deg, #22c55e, #16a34a)'
-                              : 'linear-gradient(90deg, #f0a500, #e8187a)',
+                              : activeCampaign
+                                ? bogoCampaign
+                                  ? 'linear-gradient(90deg, #e8187a, #9b20d8)'
+                                  : 'linear-gradient(90deg, #f0a500, #e8187a)'
+                                : 'linear-gradient(90deg, #f0a500, #e8187a)',
                         color: buyDisabled && !drawResult[draw.id] ? '#8888aa' : '#fff',
                         fontWeight: 700, fontSize: '13px',
                         opacity: buying === draw.id ? 0.7 : 1,
                         transition: 'all 0.3s',
                         lineHeight: '1.3',
+                        position: 'relative',
                       }}
                     >
                       {buying === draw.id
                         ? '⏳ Processing...'
                         : drawResult[draw.id]
                           ? drawResult[draw.id]!.text
-                          : !termsAccepted[draw.id]
-                            ? '📋 শর্তাবলী মেনে নিন'
-                            : buyDisabled && code
-                              ? cs?.status === 'checking' ? '⏳ Verifying...' : '🚫 Invalid Code'
-                              : `Buy · ${formatCurrency(totalPrice)}${effectiveDiscount > 0 ? ` (${effectiveDiscount}% off)` : ''}`
+                          : buyDisabled && code
+                            ? cs?.status === 'checking' ? '⏳ Verifying...' : '🚫 Invalid Code'
+                            : `Buy · ${formatCurrency(totalPrice)}${effectiveDiscount > 0 ? ` (${effectiveDiscount}% off)` : ''}`
                       }
+                      {!buying && !drawResult[draw.id] && !buyDisabled && bogoCampaign && (
+                        <span style={{
+                          position: 'absolute', top: '-10px', right: '-4px',
+                          background: '#f0a500', color: '#000', fontSize: '9px', fontWeight: 900,
+                          padding: '2px 6px', borderRadius: '8px', letterSpacing: '0.5px',
+                          boxShadow: '0 2px 6px rgba(240,165,0,0.5)',
+                        }}>BOGO</span>
+                      )}
+                      {!buying && !drawResult[draw.id] && !buyDisabled && offerCampaign && !bogoCampaign && (
+                        <span style={{
+                          position: 'absolute', top: '-10px', right: '-4px',
+                          background: '#e8187a', color: '#fff', fontSize: '9px', fontWeight: 900,
+                          padding: '2px 6px', borderRadius: '8px', letterSpacing: '0.5px',
+                          boxShadow: '0 2px 6px rgba(232,24,122,0.5)',
+                        }}>50% OFF</span>
+                      )}
                     </button>
                   </div>
-
-                  {/* Terms & Conditions Checkbox — 5px below buy button */}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '9px', marginTop: '5px', cursor: 'pointer', userSelect: 'none' }}>
-                    <input
-                      type="checkbox"
-                      checked={!!termsAccepted[draw.id]}
-                      onChange={e => setTermsAccepted(t => ({ ...t, [draw.id]: e.target.checked }))}
-                      style={{ width: '16px', height: '16px', accentColor: '#9b20d8', flexShrink: 0, cursor: 'pointer' }}
-                    />
-                    <span style={{ color: '#9999bb', fontSize: '11px', fontFamily: 'Poppins, sans-serif', lineHeight: 1.4 }}>
-                      আমি{' '}
-                      <a href="https://lotto-wins.vercel.app/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#9b20d8', textDecoration: 'underline' }}>
-                        শর্ত ও নিয়মাবলী
-                      </a>{' '}
-                      পড়েছি এবং সম্মত আছি
-                    </span>
-                  </label>
                 </div>
               )}
             </div>
