@@ -59,7 +59,11 @@ export default function AdminPage() {
   const [adFilePreview, setAdFilePreview] = useState<string | null>(null)
   const [adUploadError, setAdUploadError] = useState<string | null>(null)
   const [adUploading, setAdUploading] = useState(false)
+  const [adCreateResult, setAdCreateResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [newCode, setNewCode] = useState({ code: '', usage_limit: '100', per_person_limit: '5', expires_at: '' })
+  const [partnerCodeResult, setPartnerCodeResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const [settingsSaveResult, setSettingsSaveResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const [announcementResult, setAnnouncementResult] = useState<{ ok: boolean; text: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [newDraw, setNewDraw] = useState({
@@ -226,11 +230,14 @@ export default function AdminPage() {
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
     const res = await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
-    if (res.ok) setMsg('Settings saved')
+    const ok = res.ok
+    setSettingsSaveResult({ ok, text: ok ? '✅ Settings saved!' : '❌ Failed to save' })
+    setTimeout(() => setSettingsSaveResult(null), 3000)
   }
 
   const createBusinessCode = async (e: React.FormEvent) => {
     e.preventDefault()
+    setPartnerCodeResult(null)
     const res = await fetch(`${BASE}/api/business-codes`, {
       method: 'POST', headers,
       body: JSON.stringify({
@@ -242,11 +249,13 @@ export default function AdminPage() {
     })
     const data = await res.json()
     if (res.ok) {
-      setMsg('✅ Partner code created!')
+      setPartnerCodeResult({ ok: true, text: '✅ Code তৈরি হয়েছে!' })
       setNewCode({ code: '', usage_limit: '100', per_person_limit: '5', expires_at: '' })
+      setTimeout(() => setPartnerCodeResult(null), 3000)
       loadAll()
     } else {
-      setMsg(`❌ ${data.error || 'Failed to create code'}`)
+      setPartnerCodeResult({ ok: false, text: `❌ ${data.error || 'Failed'}` })
+      setTimeout(() => setPartnerCodeResult(null), 4000)
     }
   }
 
@@ -822,8 +831,14 @@ export default function AdminPage() {
                   <label style={{ color: '#aaa', fontSize: '12px', marginBottom: '4px', display: 'block' }}>মেয়াদ শেষের তারিখ (optional)</label>
                   <input type="datetime-local" value={newCode.expires_at} onChange={e => setNewCode(f => ({ ...f, expires_at: e.target.value }))} style={inputStyle} />
                 </div>
-                <button type="submit" style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700 }}>
-                  ➕ কোড তৈরি করো
+                <button type="submit" style={{
+                  padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                  background: partnerCodeResult
+                    ? partnerCodeResult.ok ? 'linear-gradient(90deg,#22c55e,#16a34a)' : 'linear-gradient(90deg,#e8187a,#c01460)'
+                    : 'linear-gradient(90deg, #f0a500, #e8187a)',
+                  color: '#fff', fontWeight: 700, transition: 'background 0.3s',
+                }}>
+                  {partnerCodeResult ? partnerCodeResult.text : '➕ কোড তৈরি করো'}
                 </button>
               </form>
             </div>
@@ -983,20 +998,29 @@ export default function AdminPage() {
                   <input type="url" value={newAd.link_url} onChange={e => setNewAd(f => ({ ...f, link_url: e.target.value }))} placeholder="https://..." style={inputStyle} />
                 </div>
                 <button onClick={async () => {
-                  if (!newAd.content.trim()) { setMsg('⚠️ ছবি/ভিডিও/টেক্সট সিলেক্ট করো আগে'); return }
+                  if (!newAd.content.trim()) { setAdCreateResult({ ok: false, text: '⚠️ ছবি/ভিডিও/টেক্সট সিলেক্ট করো' }); setTimeout(() => setAdCreateResult(null), 3000); return }
+                  setAdCreateResult(null)
                   const res = await fetch(`${BASE}/api/ads`, { method: 'POST', headers, body: JSON.stringify(newAd) })
                   if (res.ok) {
-                    setMsg('✅ Ad তৈরি হয়েছে!')
+                    setAdCreateResult({ ok: true, text: '✅ Ad তৈরি হয়েছে!' })
                     setNewAd({ type: 'text', title: '', content: '', link_url: '' })
-                    setAdFilePreview(null)
-                    setAdUploadError(null)
+                    setAdFilePreview(null); setAdUploadError(null)
+                    setTimeout(() => setAdCreateResult(null), 3000)
                     loadAll()
                   } else {
                     const d = await res.json().catch(() => ({}))
-                    setMsg(`❌ ${d.error || 'Failed to create ad'} (status ${res.status})`)
+                    setAdCreateResult({ ok: false, text: `❌ ${d.error || 'Failed'} (${res.status})` })
+                    setTimeout(() => setAdCreateResult(null), 4000)
                   }
-                }} disabled={adUploading} style={{ padding: '10px', borderRadius: '8px', border: 'none', cursor: adUploading ? 'not-allowed' : 'pointer', background: adUploading ? 'rgba(155,32,216,0.3)' : 'linear-gradient(90deg, #f0a500, #e8187a)', color: '#fff', fontWeight: 700, opacity: adUploading ? 0.6 : 1 }}>
-                  {adUploading ? '⏳ লোড হচ্ছে...' : '+ Ad পোস্ট করো'}
+                }} disabled={adUploading} style={{
+                  padding: '10px', borderRadius: '8px', border: 'none',
+                  cursor: adUploading ? 'not-allowed' : 'pointer',
+                  background: adUploading ? 'rgba(155,32,216,0.3)'
+                    : adCreateResult ? adCreateResult.ok ? 'linear-gradient(90deg,#22c55e,#16a34a)' : 'linear-gradient(90deg,#e8187a,#c01460)'
+                    : 'linear-gradient(90deg, #f0a500, #e8187a)',
+                  color: '#fff', fontWeight: 700, opacity: adUploading ? 0.6 : 1, transition: 'background 0.3s',
+                }}>
+                  {adUploading ? '⏳ লোড হচ্ছে...' : adCreateResult ? adCreateResult.text : '+ Ad পোস্ট করো'}
                 </button>
               </div>
             </div>
@@ -1070,12 +1094,19 @@ export default function AdminPage() {
                     type="button"
                     onClick={async () => {
                       const res = await fetch(`${BASE}/api/settings`, { method: 'POST', headers, body: JSON.stringify(settings) })
-                      if (res.ok) setMsg(settings.announcement ? '📢 Announcement published! All users notified.' : '🗑 Announcement removed')
-                      else { const d = await res.json().catch(() => ({})); setMsg(`❌ ${d.error || 'Failed to save'} (status ${res.status})`) }
+                      const ok2 = res.ok
+                      setAnnouncementResult({ ok: ok2, text: ok2 ? (settings.announcement ? '✅ Published!' : '✅ Removed') : '❌ Failed' })
+                      setTimeout(() => setAnnouncementResult(null), 3000)
                     }}
-                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', background: settings.announcement ? 'linear-gradient(90deg, #f0a500, #e8187a)' : 'rgba(136,136,170,0.2)', color: '#fff', fontWeight: 700, fontSize: '13px' }}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                      background: announcementResult
+                        ? announcementResult.ok ? 'linear-gradient(90deg,#22c55e,#16a34a)' : 'linear-gradient(90deg,#e8187a,#c01460)'
+                        : settings.announcement ? 'linear-gradient(90deg, #f0a500, #e8187a)' : 'rgba(136,136,170,0.2)',
+                      color: '#fff', fontWeight: 700, fontSize: '13px', transition: 'background 0.3s',
+                    }}
                   >
-                    {settings.announcement ? '📢 Publish Announcement' : '🗑 Remove Announcement'}
+                    {announcementResult ? announcementResult.text : settings.announcement ? '📢 Publish Announcement' : '🗑 Remove Announcement'}
                   </button>
                 </div>
               </div>
@@ -1093,7 +1124,15 @@ export default function AdminPage() {
                   <input type="text" value={(settings as any)[key] || ''} onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))} placeholder={placeholder} style={inputStyle} />
                 </div>
               ))}
-              <button type="submit" style={{ padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer', background: 'linear-gradient(90deg, #9b20d8, #e8187a)', color: '#fff', fontWeight: 700 }}>Save Settings</button>
+              <button type="submit" style={{
+                padding: '12px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+                background: settingsSaveResult
+                  ? settingsSaveResult.ok ? 'linear-gradient(90deg,#22c55e,#16a34a)' : 'linear-gradient(90deg,#e8187a,#c01460)'
+                  : 'linear-gradient(90deg, #9b20d8, #e8187a)',
+                color: '#fff', fontWeight: 700, transition: 'background 0.3s',
+              }}>
+                {settingsSaveResult ? settingsSaveResult.text : 'Save Settings'}
+              </button>
             </form>
           </div>
         )}

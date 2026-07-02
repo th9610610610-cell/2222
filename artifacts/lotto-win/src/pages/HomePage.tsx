@@ -312,13 +312,13 @@ export default function HomePage() {
               ad.type === 'video' ? (
                 <video src={ad.content} autoPlay muted loop playsInline style={{
                   position: 'absolute', inset: 0, width: '100%', height: '100%',
-                  objectFit: 'contain', zIndex: 1,
+                  objectFit: 'cover', zIndex: 1,
                 }} />
               ) : ad.type === 'image' ? (
                 <>
                   <img src={ad.content} alt={ad.title} style={{
                     position: 'absolute', inset: 0, width: '100%', height: '100%',
-                    objectFit: 'contain', zIndex: 1,
+                    objectFit: 'cover', zIndex: 1,
                   }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                   {/* Overlay for text readability */}
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,0,0,0.6) 0%, transparent 60%)', zIndex: 2 }} />

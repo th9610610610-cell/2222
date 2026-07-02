@@ -55621,6 +55621,19 @@ async function runMigrations(connectionString) {
     await client.query(`
       CREATE INDEX IF NOT EXISTS otp_codes_identifier_purpose_idx ON otp_codes (identifier, purpose)
     `);
+    await client.query(`ALTER TABLE business_codes ADD COLUMN IF NOT EXISTS per_person_limit INTEGER`);
+    await client.query(`DO $$ BEGIN CREATE TYPE campaign_type AS ENUM ('partner_discount', 'free_ticket', 'unlimited_internet', 'cashback', 'giveaway', 'buy_x_get_y', 'special_offer'); EXCEPTION WHEN duplicate_object THEN null; END $$`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        draw_id UUID NOT NULL REFERENCES draws(id) ON DELETE CASCADE,
+        campaign_type campaign_type NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        config TEXT NOT NULL DEFAULT '{}',
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
     console.log("[migrate] All migrations applied successfully");
   } catch (err) {
     console.error("[migrate] Migration failed:", err);
